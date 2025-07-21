@@ -15,4 +15,4 @@ connectivity, Axelar aims to drive the adoption of Web3 by creating a unified, i
 """)
 
 
-🔵 **X: https://x.com/axelar**
+🔵 ***X: https://x.com/axelar***
