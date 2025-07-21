@@ -1,19 +1,11 @@
-# Snowflake Dashboard with Streamlit
+# Axelar Network Performance Analysis
 
-این پروژه یک داشبورد ساده با **Streamlit** است که داده‌ها را از **Snowflake** می‌گیرد و به صورت چارت نمایش می‌دهد.
+## Sections:
+### 1- Home
+### 2- Transaction Analysis
+### 3- User Analysis
+### 4- Gas Fee Analysis
+### 5- Block Analysis
 
-## اجرا به صورت محلی
-1. پکیج‌ها را نصب کنید:
-    ```
-    pip install -r requirements.txt
-    ```
-2. اطلاعات Snowflake را در `.streamlit/secrets.toml` قرار دهید.
-3. داشبورد را اجرا کنید:
-    ```
-    streamlit run dashboard.py
-    ```
-
-## دیپلوی روی Streamlit Cloud
-1. این ریپازیتوری را به GitHub اضافه کنید.
-2. به [share.streamlit.io](https://share.streamlit.io) بروید و ریپازیتوری را وصل کنید.
-3. Secrets را در تنظیمات Streamlit Cloud اضافه کنید.
+🟠 https://www.axelar.network/
+🔵 https://x.com/axelar
