@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.set_page_config(layout="wide", page_title="Axelar Dashboard")
+st.set_page_config(layout="wide", page_title="Axelar Network Performance Analysis")
 
 st.title("Axelar Network Dashboard")
 st.markdown("""
