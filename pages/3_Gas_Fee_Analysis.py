@@ -39,52 +39,33 @@ date_col = truncate_date("block_timestamp", timeframe)
 
 # --- Query Functions ---------------------------------------------------------------------------------------
 @st.cache_data
-def load_total_users(start_date, end_date):
+def load_fee_metrics(start_date, end_date):
     query = f"""
-    SELECT COUNT(DISTINCT tx_from) AS "Total Users"
+    SELECT 
+        ROUND(SUM(fee)/pow(10,6)) AS "Fee Amount", 
+        ROUND(AVG(fee)/pow(10,6),3) AS "Average Fee per TX",
+        ROUND(MEDIAN(fee)/pow(10,6),3) AS "Median Fee per TX", 
+        ROUND(MAX(fee)/pow(10,6),3) AS "Max Fee"
     FROM axelar.core.fact_transactions
-    WHERE tx_succeeded='true'
-      AND block_timestamp::date >= '{start_date}'
+    WHERE block_timestamp::date >= '{start_date}'
       AND block_timestamp::date <= '{end_date}'
+      AND fee_denom='uaxl'
+      AND tx_succeeded='true'
     """
-    return pd.read_sql(query, conn).iloc[0, 0]
-
-@st.cache_data
-def load_median_user_tx(start_date, end_date):
-    query = f"""
-    WITH tab1 AS (
-        SELECT tx_from, COUNT(DISTINCT tx_id) AS tx_count
-        FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true'
-          AND block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-        GROUP BY 1
-    )
-    SELECT ROUND(MEDIAN(tx_count)) AS "Median Number of User Transactions"
-    FROM tab1
-    """
-    return pd.read_sql(query, conn).iloc[0, 0]
+    return pd.read_sql(query, conn).iloc[0]
 
 
 # --- Load Data ----------------------------------------------------------------------------------------
-total_users = load_total_users(start_date, end_date)
-median_user_tx = load_median_user_tx(start_date, end_date)
+fee_metrics = load_fee_metrics(start_date, end_date)
 
 
 # --- Row Data ------------------------------------------------------------------------------------------
 
 # --- Row 1: Metrics ---
-col1, col2 = st.columns(2)
-col1.metric("Total number of Axelar network users", f"{total_users:,}")
-col2.metric("Median Number of User Transactions", f"{median_user_tx}")
-
-# --- Helper function to show growth with correct delta_color ---
-def display_growth_metric(label, value):
-    if value > 0:
-        st.metric(label=label, value=f"{value}%", delta=f"▲ {value}%", delta_color="normal")
-    elif value < 0:
-        st.metric(label=label, value=f"{value}%", delta=f"▼ {abs(value)}%", delta_color="inverse")
-    else:
-        st.metric(label=label, value=f"{value}%", delta="0%", delta_color="off")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Fees Paid on the Axelar Network", f"{fee_metrics['Fee Amount']:,} AXL")
+col2.metric("Average Fee Paid per Transaction", f"{fee_metrics['Average Fee per TX']} AXL")
+col3.metric("Median Transaction Fees", f"{fee_metrics['Median Fee per TX']} AXL")
+col4.metric("Maximum Fee Paid in One Transaction", f"{fee_metrics['Max Fee']} AXL")
 
 
