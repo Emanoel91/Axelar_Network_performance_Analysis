@@ -87,11 +87,4 @@ def display_growth_metric(label, value):
     else:
         st.metric(label=label, value=f"{value}%", delta="0%", delta_color="off")
 
-# --- Row 2: User Growth Percentage (1D, 7D) ---
-col3, col4 = st.columns(2)
-with col3:
-    display_growth_metric("User Growth Percentage: 1D", user_growth["User Change (1D)"])
-with col4:
-    display_growth_metric("User Growth Percentage: 7D", user_growth["User Change (7D)"])
-
 
