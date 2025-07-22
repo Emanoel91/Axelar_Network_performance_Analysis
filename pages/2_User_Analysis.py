@@ -230,6 +230,26 @@ group by 1
     """
     return pd.read_sql(query, conn)
 
+@st.cache_data
+def load_top_users(start_date, end_date):
+    query = f"""
+    SELECT tx_from AS "👨‍💻User",
+           MIN(block_timestamp::date) AS "📅Creation Date",
+           COUNT(DISTINCT tx_id) AS "⛓Transactions Count",
+           COUNT(DISTINCT block_timestamp::date) AS "📋# of Days of Activity",
+           ROUND((SUM(fee)/POW(10,6)), 2) AS "💸Total Fee Paid ($AXL)",
+           ROUND(AVG(gas_used), 2) AS "💨Average Gas Used"
+    FROM axelar.core.fact_transactions
+    WHERE tx_succeeded='true'
+      AND block_timestamp::date >= '{start_date}'
+      AND block_timestamp::date <= '{end_date}'
+      AND fee_denom = 'uaxl'
+    GROUP BY 1
+    ORDER BY "⛓Transactions Count" DESC
+    LIMIT 1000
+    """
+    return pd.read_sql(query, conn)
+
 # --- Load Data ---
 total_users = load_total_users(start_date, end_date)
 median_user_tx = load_median_user_tx(start_date, end_date)
@@ -240,6 +260,7 @@ growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
 distribution_txs_df = load_distribution_txs_count(start_date, end_date)
 distribution_days_df = load_distribution_days_activity(start_date, end_date)
 distribution_fee_df = load_distribution_fee_paid(start_date, end_date)
+top_users_df = load_top_users(start_date, end_date)
 
 # --- Row 1: Metrics ---
 col1, col2 = st.columns(2)
@@ -361,3 +382,8 @@ with col10:
         st.plotly_chart(fig5, use_container_width=True)
     else:
         st.info("No data available for fee distribution in the selected period.")
+
+# --- Row 7: Top 1000 Users Table ---
+st.markdown("---")
+st.markdown("<h4 style='font-size:16px;'>🔎 Axelar Network User Tracking: Top 1000 Users</h4>", unsafe_allow_html=True)
+st.dataframe(top_users_df, use_container_width=True)
