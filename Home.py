@@ -2,7 +2,7 @@ import streamlit as st
 
 st.set_page_config(layout="wide", page_title="Axelar Network Performance Analysis")
 
-st.title("Axelar Network Dashboard")
+st.title("📚Axelar Network Performance Analysis")
 
 st.markdown("""
 ### About Axelar
@@ -15,7 +15,7 @@ connectivity, Axelar aims to drive the adoption of Web3 by creating a unified, i
 """)
 
 # --- Display Image ---
-st.image("https://i.postimg.cc/Y9yL6KRH/axelar.jpg", caption="", use_container_width=True)
+st.image("https://i.postimg.cc/s2HY308v/axelar.jpg", caption="", use_container_width=True)
 
 st.markdown("""
 🟠 Website: https://www.axelar.network/
