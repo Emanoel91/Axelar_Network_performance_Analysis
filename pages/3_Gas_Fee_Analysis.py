@@ -133,6 +133,22 @@ def load_txn_fees_per_year():
     """
     return pd.read_sql(query, conn)
 
+@st.cache_data
+def load_avg_fee_vs_txcount(start_date, end_date):
+    query = f"""
+        SELECT 
+            block_timestamp::date AS "Date",
+            ROUND((AVG(fee) / POW(10, 6)), 5) AS "Average Fee per TX",
+            COUNT(DISTINCT tx_id) AS "TXs Count"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
 
 
 # --- Load Data ----------------------------------------------------------------------------------------
@@ -142,7 +158,7 @@ average_gas = load_average_gas_usage(start_date, end_date)
 fee_metrics = load_fee_metrics(start_date, end_date)
 monthly_fees = load_monthly_fees(start_date, end_date, timeframe)
 avg_gas_df = load_avg_gas_used_wanted(date_col, start_date, end_date)
-
+avg_fee_vs_txcount_df = load_avg_fee_vs_txcount(start_date, end_date)
 
 # --- Row Data ------------------------------------------------------------------------------------------
 
@@ -215,3 +231,23 @@ fig_txn_fees = px.bar(txn_fees_df, x="Date", y="Txn Fees",
                       labels={"Txn Fees": "AXL", "Date": "Year"},
                       title="Total Transaction Fees per Year")
 col2.plotly_chart(fig_txn_fees, use_container_width=True)
+
+# --- Row 5: Scatter Plot ---
+st.subheader("Relationship Between Average Transaction Fee and Transaction Count")
+fig_scatter = px.scatter(
+    avg_fee_vs_txcount_df,
+    x="Average Fee per TX",
+    y="TXs Count",
+    size="TXs Count",
+    color="Average Fee per TX",
+    hover_name="Date",
+    title="Average Fee per TX vs TXs Count",
+    labels={"Average Fee per TX": "Average Fee per TX (AXL)", "TXs Count": "Number of Transactions"},
+)
+
+fig_scatter.update_layout(
+    xaxis_title="Average Fee per TX (AXL)",
+    yaxis_title="Transactions Count"
+)
+
+st.plotly_chart(fig_scatter, use_container_width=True)
