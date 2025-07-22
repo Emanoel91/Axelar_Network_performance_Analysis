@@ -250,7 +250,42 @@ def load_top_users(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
-# --- Load Data ---
+# --- Distribution of Users based on Average Time between Transactions ---
+@st.cache_data
+def load_avg_time_gap(start_date, end_date):
+    query = f"""
+    WITH tab1 AS (
+        SELECT tx_from AS user,
+               block_timestamp AS txs_date,
+               LAG(block_timestamp) OVER (PARTITION BY tx_from ORDER BY block_timestamp) AS Previous_transaction_date
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}' 
+          AND block_timestamp::date <= '{end_date}'
+    ),
+    txs_time AS (
+        SELECT user,
+               AVG(DATEDIFF(hour, Previous_transaction_date, txs_date)) AS avg_time_gap
+        FROM tab1
+        WHERE Previous_transaction_date IS NOT NULL
+        GROUP BY user
+    )
+    SELECT CASE 
+        WHEN avg_time_gap <= 12 THEN 'TG <= 12 Hours'
+        WHEN avg_time_gap > 12 AND avg_time_gap <= 24 THEN '12 Hours < TG <= 1 Day'
+        WHEN avg_time_gap > 24 AND avg_time_gap <= 72 THEN '1 Day < TG <= 3 Days'
+        WHEN avg_time_gap > 72 AND avg_time_gap <= 168 THEN '3 Days < TG <= 1 Week'
+        WHEN avg_time_gap > 168 AND avg_time_gap <= 720 THEN '1 Week < TG <= 1 Month'
+        ELSE 'TG > 1 Month'
+    END AS "Avg Time Between TXs",
+    COUNT(DISTINCT user) AS "User Count"
+    FROM txs_time
+    GROUP BY 1
+    ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+    
+
+# --- Load Data ----------------------------------------------------------------------------------------
 total_users = load_total_users(start_date, end_date)
 median_user_tx = load_median_user_tx(start_date, end_date)
 user_growth = load_user_growth()
@@ -261,6 +296,7 @@ distribution_txs_df = load_distribution_txs_count(start_date, end_date)
 distribution_days_df = load_distribution_days_activity(start_date, end_date)
 distribution_fee_df = load_distribution_fee_paid(start_date, end_date)
 top_users_df = load_top_users(start_date, end_date)
+avg_time_gap_df = load_avg_time_gap(start_date, end_date)
 
 # --- Row 1: Metrics ---
 col1, col2 = st.columns(2)
@@ -387,3 +423,18 @@ with col10:
 st.markdown("---")
 st.markdown("<h4 style='font-size:16px;'>🔎 Axelar Network User Tracking: Top 1000 Users</h4>", unsafe_allow_html=True)
 st.dataframe(top_users_df, use_container_width=True)
+
+# --- Row 8: Pie Chart ---
+st.markdown("---")
+st.markdown("<h4 style='font-size:16px;'>Distribution of Users based on Average Time between Transactions</h4>", unsafe_allow_html=True)
+
+fig = px.pie(avg_time_gap_df,
+             names="Avg Time Between TXs",
+             values="User Count",
+             color_discrete_sequence=px.colors.qualitative.Set3,
+             hole=0.3)
+
+fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+                  legend_title_text='Avg Time Gap')
+
+st.plotly_chart(fig, use_container_width=True)
