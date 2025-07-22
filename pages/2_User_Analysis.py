@@ -575,26 +575,30 @@ st.dataframe(failed_txns_df.style.format({
 
 # --- Row 10: Side-by-Side Charts ---
 
-# نمودار اول: تغییرات سالانه
-fig_year = px.bar(
-    new_users_df.groupby("Date", as_index=False)["New Users"].sum(),
+fig_bubble = px.scatter(
+    new_users_df,
+    x="Date",
+    y="Quarter",
+    size="New Users",
+    color="Quarter",
+    text="New Users",
+    title="New Users by Year and Quarter (Bubble Chart)",
+    size_max=60
+)
+fig_bubble.update_traces(textposition='middle center')
+fig_bubble.update_layout(yaxis=dict(categoryorder="array", categoryarray=["Q1", "Q2", "Q3", "Q4"]))
+
+fig_grouped = px.bar(
+    new_users_df,
     x="Date",
     y="New Users",
-    title="New Users per Year on Axelar Network"
-)
-
-# نمودار دوم: تغییرات بر اساس کوارتر در هر سال
-fig_quarter = px.bar(
-    new_users_df,
-    x="Quarter",
-    y="New Users",
     color="Quarter",
-    facet_col="Date",
-    title="New Users per Quarter (by Year)"
+    barmode="group",
+    title="New Users per Quarter by Year"
 )
 
 col1, col2 = st.columns(2)
 with col1:
-    st.plotly_chart(fig_year, use_container_width=True)
+    st.plotly_chart(fig_bubble, use_container_width=True)
 with col2:
-    st.plotly_chart(fig_quarter, use_container_width=True)
+    st.plotly_chart(fig_grouped, use_container_width=True)
