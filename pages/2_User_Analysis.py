@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # --- Wide Layout ---
 st.set_page_config(layout="wide")
 
-st.title("Axelar Network: User Analysis")
+st.title("Axelar Network: User Analysis👥")
 
 # --- Snowflake Connection ---
 conn = snowflake.connector.connect(
