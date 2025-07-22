@@ -105,6 +105,7 @@ def load_user_growth():
 @st.cache_data
 def load_users_over_time(start_date, end_date, timeframe):
     date_trunc_col = truncate_date("block_timestamp", timeframe)
+    date_trunc_coll = truncate_date("first_tx", timeframe)
     query = f"""
     WITH tab1 AS (
         SELECT {date_trunc_col} AS "Date", COUNT(DISTINCT tx_from) AS "Total Users"
@@ -123,14 +124,16 @@ def load_users_over_time(start_date, end_date, timeframe):
               AND block_timestamp::date <= '{end_date}'
             GROUP BY 1
         )
-        SELECT date_trunc('month', first_tx) AS "Date", COUNT(DISTINCT tx_from) AS "New Users"
+        SELECT {date_trunc_coll} AS "Date", COUNT(DISTINCT tx_from) AS "New Users"
         FROM tab10
+        WHERE 
+          AND first_tx::date >= '{start_date}'
+          AND first_tx::date <= '{end_date}'
         GROUP BY 1
     )
     SELECT tab1."Date" AS "Date", "Total Users", COALESCE("New Users",0) AS "New Users", "Total Users" - COALESCE("New Users",0) AS "Active Users"
     FROM tab1
     LEFT JOIN tab2 ON tab1."Date"=tab2."Date"
-    WHERE tab1."Date" >= '2022-01-01'
     ORDER BY tab1."Date"
     """
     df = pd.read_sql(query, conn)
