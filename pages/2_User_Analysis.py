@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import snowflake.connector
+import plotly.express as px
+import plotly.graph_objects as go
 
 # --- Wide Layout ---
 st.set_page_config(layout="wide")
@@ -21,6 +23,19 @@ conn = snowflake.connector.connect(
 timeframe = st.selectbox("Select Time Frame", ["day", "week", "month"])
 start_date = st.date_input("Start Date", value=pd.to_datetime("2022-01-01"))
 end_date = st.date_input("End Date", value=pd.to_datetime("today"))
+
+# --- تابع کمکی برای تاریخ کلان بر اساس Time Frame ---
+def truncate_date(date_col, timeframe):
+    if timeframe == "day":
+        return f"block_timestamp::date"
+    elif timeframe == "week":
+        return f"date_trunc('week', block_timestamp)"
+    elif timeframe == "month":
+        return f"date_trunc('month', block_timestamp)"
+    else:
+        return "block_timestamp::date"
+
+date_col = truncate_date("block_timestamp", timeframe)
 
 # --- Query Functions ---
 @st.cache_data
@@ -52,7 +67,6 @@ def load_median_user_tx(start_date, end_date):
 
 @st.cache_data
 def load_user_growth():
-    # توجه: این کوئری زمان ثابت (آخرین روز جاری) دارد و به انتخاب تاریخ وابسته نیست
     query = """
     WITH tab1 AS (
         SELECT COUNT(DISTINCT tx_from) AS User1d
@@ -88,10 +102,115 @@ def load_user_growth():
     """
     return pd.read_sql(query, conn).iloc[0]
 
+@st.cache_data
+def load_users_over_time(start_date, end_date, timeframe):
+    date_trunc_col = truncate_date("block_timestamp", timeframe)
+    query = f"""
+    WITH tab1 AS (
+        SELECT {date_trunc_col} AS "Date", COUNT(DISTINCT tx_from) AS "Total Users"
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded='true'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+    ),  
+    tab2 AS (
+        WITH tab10 AS (
+            SELECT tx_from, MIN(block_timestamp::date) AS first_tx
+            FROM axelar.core.fact_transactions
+            WHERE tx_succeeded='true'
+              AND block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+            GROUP BY 1
+        )
+        SELECT date_trunc('month', first_tx) AS "Date", COUNT(DISTINCT tx_from) AS "New Users"
+        FROM tab10
+        GROUP BY 1
+    )
+    SELECT tab1."Date" AS "Date", "Total Users", COALESCE("New Users",0) AS "New Users", "Total Users" - COALESCE("New Users",0) AS "Active Users"
+    FROM tab1
+    LEFT JOIN tab2 ON tab1."Date"=tab2."Date"
+    WHERE tab1."Date" >= '2022-01-01'
+    ORDER BY tab1."Date"
+    """
+    df = pd.read_sql(query, conn)
+    return df
+
+@st.cache_data
+def load_growth_over_time(start_date, end_date, timeframe):
+    date_trunc_col = truncate_date("first_tx", timeframe)
+    query = f"""
+    WITH tab10 AS (
+        SELECT tx_from, MIN(block_timestamp::date) AS first_tx
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded='true'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+    )
+    SELECT date_trunc('month', first_tx) AS "Date", COUNT(DISTINCT tx_from) AS "New Users",
+           SUM(COUNT(DISTINCT tx_from)) OVER (ORDER BY date_trunc('month', first_tx)) AS "Total Users"
+    FROM tab10
+    WHERE first_tx::date >= '2022-01-01'
+    GROUP BY 1
+    ORDER BY 1
+    """
+    df = pd.read_sql(query, conn)
+    return df
+
+@st.cache_data
+def load_distribution_txs_count(start_date, end_date):
+    query = f"""
+    WITH tab1 AS (
+        SELECT tx_from, COUNT(DISTINCT tx_id) AS tx_count
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded='true'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+    )
+    SELECT tx_count AS "TXs Count", COUNT(DISTINCT tx_from) AS "Users Count"
+    FROM tab1
+    GROUP BY 1
+    ORDER BY 1
+    """
+    df = pd.read_sql(query, conn)
+    return df
+
+@st.cache_data
+def load_distribution_days_activity(start_date, end_date):
+    query = f"""
+    WITH tab1 AS (
+        SELECT tx_from, COUNT(DISTINCT block_timestamp::date) AS day_count,
+            CASE  
+                WHEN COUNT(DISTINCT block_timestamp::date) = 1 THEN 'n=1'
+                WHEN COUNT(DISTINCT block_timestamp::date) > 1 AND COUNT(DISTINCT block_timestamp::date) <= 7 THEN '1<n<=7'
+                WHEN COUNT(DISTINCT block_timestamp::date) > 7 AND COUNT(DISTINCT block_timestamp::date) <= 30 THEN '7<n<=30'
+                ELSE 'n>30' 
+            END AS "Class"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND tx_succeeded='true'
+        GROUP BY 1
+    )
+    SELECT "Class", COUNT(DISTINCT tx_from) AS "Users Count"
+    FROM tab1
+    GROUP BY 1
+    ORDER BY "Class"
+    """
+    df = pd.read_sql(query, conn)
+    return df
+
 # --- Load Data ---
 total_users = load_total_users(start_date, end_date)
 median_user_tx = load_median_user_tx(start_date, end_date)
 user_growth = load_user_growth()
+
+users_over_time_df = load_users_over_time(start_date, end_date, timeframe)
+growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
+distribution_txs_df = load_distribution_txs_count(start_date, end_date)
+distribution_days_df = load_distribution_days_activity(start_date, end_date)
 
 # --- Row 1: Metrics ---
 col1, col2 = st.columns(2)
@@ -120,3 +239,84 @@ with col5:
     display_growth_metric("User Growth Percentage: 30D", user_growth["User Change (30D)"])
 with col6:
     display_growth_metric("User Growth Percentage: 1Y", user_growth["User Change (1Y)"])
+
+# --- Row 4: Axelar Users Over Time (Stacked Bar + Line) ---
+st.markdown("---")
+st.subheader("Axelar Users Over Time")
+
+fig1 = go.Figure()
+fig1.add_trace(go.Bar(
+    x=users_over_time_df['Date'],
+    y=users_over_time_df['New Users'],
+    name='New Users',
+    marker_color='rgb(26, 118, 255)'
+))
+fig1.add_trace(go.Bar(
+    x=users_over_time_df['Date'],
+    y=users_over_time_df['Active Users'],
+    name='Active Users',
+    marker_color='rgb(55, 83, 109)'
+))
+fig1.add_trace(go.Scatter(
+    x=users_over_time_df['Date'],
+    y=users_over_time_df['Total Users'],
+    name='Total Users',
+    yaxis='y2',
+    mode='lines+markers',
+    line=dict(color='rgb(255, 0, 0)', width=2)
+))
+
+fig1.update_layout(
+    barmode='stack',
+    xaxis=dict(title='Date'),
+    yaxis=dict(title='Number of Users'),
+    yaxis2=dict(
+        title='Total Users',
+        overlaying='y',
+        side='right'
+    ),
+    legend=dict(x=0, y=1.2, orientation='h')
+)
+
+st.plotly_chart(fig1, use_container_width=True)
+
+# --- Row 5: Two charts side by side ---
+col7, col8 = st.columns(2)
+
+with col7:
+    st.subheader("Growth of Axelar Network Users Over Time")
+    fig2 = px.bar(
+        growth_over_time_df, 
+        x='Date', 
+        y='Total Users', 
+        labels={'Date': 'Date', 'Total Users': 'Total Users'}
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+with col8:
+    st.subheader("Distribution of Users Based on the TXs Count")
+    fig3 = px.bar(
+        distribution_txs_df,
+        x='TXs Count',
+        y='Users Count',
+        labels={'TXs Count': 'TXs Count', 'Users Count': 'Users Count'}
+    )
+    st.plotly_chart(fig3, use_container_width=True)
+
+# --- Row 6: Pie Chart ---
+st.markdown("---")
+st.subheader("Distribution of Users Based on the Number of Days of Activity")
+
+fig4 = px.pie(
+    distribution_days_df,
+    names='Class',
+    values='Users Count',
+    color='Class',
+    color_discrete_map={
+        'n=1': 'lightblue',
+        '1<n<=7': 'orange',
+        '7<n<=30': 'green',
+        'n>30': 'purple'
+    }
+)
+st.plotly_chart(fig4, use_container_width=True)
