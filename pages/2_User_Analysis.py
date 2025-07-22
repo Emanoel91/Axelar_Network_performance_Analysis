@@ -465,19 +465,19 @@ st.markdown("<h4 style='font-size:16px;'>🔎 Axelar Network User Tracking: Top 
 st.dataframe(top_users_df, use_container_width=True)
 
 # --- Row 8: Pie Chart ---
-st.markdown("---")
-st.markdown("<h4 style='font-size:16px;'>Distribution of Users based on Average Time between Transactions</h4>", unsafe_allow_html=True)
+#st.markdown("---")
+#st.markdown("<h4 style='font-size:16px;'>Distribution of Users based on Average Time between Transactions</h4>", unsafe_allow_html=True)
 
-fig = px.pie(avg_time_gap_df,
-             names="Avg Time Between TXs",
-             values="User Count",
-             color_discrete_sequence=px.colors.qualitative.Set3,
-             hole=0.3)
+#fig = px.pie(avg_time_gap_df,
+#             names="Avg Time Between TXs",
+ #            values="User Count",
+ #            color_discrete_sequence=px.colors.qualitative.Set3,
+#             hole=0.3)
 
-fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-                  legend_title_text='Avg Time Gap')
+#fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+ #                 legend_title_text='Avg Time Gap')
 
-st.plotly_chart(fig, use_container_width=True)
+#st.plotly_chart(fig, use_container_width=True)
 
 # --- Row 8: Side-by-Side Charts ---
 col1, col2 = st.columns(2)
