@@ -54,10 +54,30 @@ def load_fee_metrics(start_date, end_date):
     """
     return pd.read_sql(query, conn).iloc[0]
 
-
+@st.cache_data
+def load_monthly_fees(start_date, end_date, timeframe):
+    date_col = truncate_date("block_timestamp", timeframe)
+    query = f"""
+        SELECT 
+            {date_col} AS "Date",
+            SUM(fee)/pow(10,6) AS "Fee Amount",
+            AVG(fee)/pow(10,6) AS "Average Fee per TX",
+            MEDIAN(fee)/pow(10,6) AS "Median Fee per TX",
+            MAX(fee)/pow(10,6) AS "Max Fee",
+            SUM(SUM(fee)/pow(10,6)) OVER (ORDER BY {date_col} ASC) AS "Total Fee"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+    
 # --- Load Data ----------------------------------------------------------------------------------------
 fee_metrics = load_fee_metrics(start_date, end_date)
-
+monthly_fees = load_monthly_fees(start_date, end_date, timeframe)
 
 # --- Row Data ------------------------------------------------------------------------------------------
 
@@ -68,4 +88,33 @@ col2.metric("Average Fee Paid per Transaction", f"{fee_metrics['Average Fee per 
 col3.metric("Median Transaction Fees", f"{fee_metrics['Median Fee per TX']} AXL")
 col4.metric("Maximum Fee Paid in One Transaction", f"{fee_metrics['Max Fee']} AXL")
 
+# --- Row 2: Charts ---
+col1, col2 = st.columns(2)
 
+# Chart 1: Column (Fee Amount) + Line (Total Fee)
+fig1 = go.Figure()
+fig1.add_bar(x=monthly_fees["Date"], y=monthly_fees["Fee Amount"], name="Fee Amount (AXL)", yaxis="y1")
+fig1.add_trace(go.Scatter(x=monthly_fees["Date"], y=monthly_fees["Total Fee"], name="Total Fee (AXL)", yaxis="y2", mode='lines', line=dict(color='red')))
+
+fig1.update_layout(
+    title="Monthly Fee Amount and Total Fees Over Time",
+    xaxis=dict(title="Date"),
+    yaxis=dict(title="Fee Amount (AXL)", side="left"),
+    yaxis2=dict(title="Total Fee (AXL)", overlaying="y", side="right"),
+    legend=dict(x=0.1, y=1.1, orientation="h")
+)
+col1.plotly_chart(fig1, use_container_width=True)
+
+# Chart 2: Line Chart (Average vs Median Fee per TX)
+fig2 = go.Figure()
+fig2.add_trace(go.Scatter(x=monthly_fees["Date"], y=monthly_fees["Average Fee per TX"], mode='lines', name="Average Fee per TX (AXL)", yaxis="y1"))
+fig2.add_trace(go.Scatter(x=monthly_fees["Date"], y=monthly_fees["Median Fee per TX"], mode='lines', name="Median Fee per TX (AXL)", yaxis="y2"))
+
+fig2.update_layout(
+    title="Average vs Median Transaction Fees Over Time",
+    xaxis=dict(title="Date"),
+    yaxis=dict(title="Average Fee per TX (AXL)", side="left"),
+    yaxis2=dict(title="Median Fee per TX (AXL)", overlaying="y", side="right"),
+    legend=dict(x=0.1, y=1.1, orientation="h")
+)
+col2.plotly_chart(fig2, use_container_width=True)
