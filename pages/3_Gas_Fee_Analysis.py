@@ -150,7 +150,7 @@ col2.plotly_chart(fig2, use_container_width=True)
 
 # --- Row 3: Metrics ---
 col1, col2, col3, col4 = st.columns(4)
-col1.metric("Current Gas Used (Yesterday)", f"{current_gas['Current Gas Used']:,}")
-col2.metric("Current Gas Wanted (Yesterday)", f"{current_gas['Current Gas Wanted']:,}")
+col1.metric("Current Gas Used (Current Date)", f"{current_gas['Current Gas Used']:,}")
+col2.metric("Current Gas Wanted (Current Date)", f"{current_gas['Current Gas Wanted']:,}")
 col3.metric("Average Gas Used (Selected Period)", f"{average_gas['Average Gas Used']:.2f}")
 col4.metric("Average Gas Wanted (Selected Period)", f"{average_gas['Average Gas Wanted']:.2f}")
