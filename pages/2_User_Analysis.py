@@ -328,36 +328,36 @@ with col8:
     fig3.update_layout(legend_title_font=dict(size=12), legend_font=dict(size=10))
     st.plotly_chart(fig3, use_container_width=True)
 
-# --- Row 6: Pie Chart (Days Activity) ---
+# --- Row 6: Two Pie Charts Side by Side ---
 st.markdown("---")
-st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the Number of Days of Activity</h4>", unsafe_allow_html=True)
+col9, col10 = st.columns(2)
 
-fig4 = px.pie(
-    distribution_days_df,
-    names='Class',
-    values='Users Count',
-    color='Class',
-    color_discrete_map={
-        'n=1': 'lightblue',
-        '1<n<=7': 'orange',
-        '7<n<=30': 'green',
-        'n>30': 'purple'
-    }
-)
-st.plotly_chart(fig4, use_container_width=True)
-
-# --- Row 7: Pie Chart (Fee Paid) ---
-st.markdown("---")
-st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on Total Fees Paid</h4>", unsafe_allow_html=True)
-
-if not distribution_fee_df.empty:
-    fig5 = px.pie(
-        distribution_fee_df,
+with col9:
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the Number of Days of Activity</h4>", unsafe_allow_html=True)
+    fig4 = px.pie(
+        distribution_days_df,
         names='Class',
         values='Users Count',
         color='Class',
-        color_discrete_sequence=px.colors.qualitative.Set2
+        color_discrete_map={
+            'n=1': 'lightblue',
+            '1<n<=7': 'orange',
+            '7<n<=30': 'green',
+            'n>30': 'purple'
+        }
     )
-    st.plotly_chart(fig5, use_container_width=True)
-else:
-    st.info("No data available for fee distribution in the selected period.")
+    st.plotly_chart(fig4, use_container_width=True)
+
+with col10:
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on Total Fees Paid</h4>", unsafe_allow_html=True)
+    if not distribution_fee_df.empty:
+        fig5 = px.pie(
+            distribution_fee_df,
+            names='Class',
+            values='Users Count',
+            color='Class',
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+        st.plotly_chart(fig5, use_container_width=True)
+    else:
+        st.info("No data available for fee distribution in the selected period.")
