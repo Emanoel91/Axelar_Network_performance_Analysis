@@ -322,6 +322,39 @@ def load_2025_user_trends():
     ORDER BY 2 DESC
     """
     return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_failed_txns_data(start_date, end_date):
+    query = f"""
+    WITH address_tx_data AS (
+        SELECT tx_from AS "User",
+               COUNT(DISTINCT tx_id) AS "False Txns Count",
+               COUNT(DISTINCT block_timestamp::date) AS "Number of Days of Activity",
+               ROUND(COUNT(DISTINCT tx_id)::decimal / COUNT(DISTINCT block_timestamp::date), 2) AS "False Txns Count per Day"
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded = 'FALSE'
+          AND block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+        GROUP BY 1
+        ORDER BY 2 DESC
+        LIMIT 10
+    ),
+    first_tx_data AS (
+        SELECT tx_from,
+               MIN(block_timestamp::date) AS "First Txn Date"
+        FROM axelar.core.fact_transactions
+        GROUP BY 1
+    )
+    SELECT address_tx_data."User",
+           "False Txns Count",
+           "Number of Days of Activity",
+           "False Txns Count per Day",
+           "First Txn Date"
+    FROM address_tx_data
+             LEFT JOIN first_tx_data ON address_tx_data."User" = first_tx_data.tx_from
+    ORDER BY "False Txns Count" DESC
+    """
+    return pd.read_sql(query, conn)
     
 
 # --- Load Data ----------------------------------------------------------------------------------------
@@ -337,6 +370,7 @@ distribution_days_df = load_distribution_days_activity(start_date, end_date)
 distribution_fee_df = load_distribution_fee_paid(start_date, end_date)
 top_users_df = load_top_users(start_date, end_date)
 avg_time_gap_df = load_avg_time_gap(start_date, end_date)
+failed_txns_df = load_failed_txns_data(start_date, end_date)
 
 # --- Row 1: Metrics ---
 col1, col2 = st.columns(2)
@@ -491,3 +525,13 @@ with col2:
                        yaxis_title="User Type",
                        showlegend=False)
     st.plotly_chart(fig2, use_container_width=True)
+
+# --- Row 9: table ---
+st.markdown("### Addresses with the Most Failed Transactions on the Axelar Network")
+
+st.dataframe(failed_txns_df.style.format({
+    "False Txns Count": "{:,}",
+    "Number of Days of Activity": "{:,}",
+    "False Txns Count per Day": "{:.2f}",
+    "First Txn Date": lambda x: x.dt.strftime('%Y-%m-%d') if hasattr(x, "dt") else x
+}).highlight_max(subset=["False Txns Count"], color='tomato'))
