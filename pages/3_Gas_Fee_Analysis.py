@@ -74,8 +74,37 @@ def load_monthly_fees(start_date, end_date, timeframe):
         ORDER BY 1
     """
     return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_current_gas_usage():
+    query = """
+        SELECT 
+            ROUND(AVG(gas_used)) AS "Current Gas Used",
+            ROUND(AVG(gas_wanted)) AS "Current Gas Wanted"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date = CURRENT_DATE - 1
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+    """
+    return pd.read_sql(query, conn).iloc[0]
+
+@st.cache_data
+def load_average_gas_usage(start_date, end_date):
+    query = f"""
+        SELECT 
+            AVG(gas_used) AS "Average Gas Used",
+            AVG(gas_wanted) AS "Average Gas Wanted"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+    """
+    return pd.read_sql(query, conn).iloc[0]
     
 # --- Load Data ----------------------------------------------------------------------------------------
+current_gas = load_current_gas_usage()
+average_gas = load_average_gas_usage(start_date, end_date)
 fee_metrics = load_fee_metrics(start_date, end_date)
 monthly_fees = load_monthly_fees(start_date, end_date, timeframe)
 
@@ -97,10 +126,10 @@ fig1.add_bar(x=monthly_fees["Date"], y=monthly_fees["Fee Amount"], name="Fee Amo
 fig1.add_trace(go.Scatter(x=monthly_fees["Date"], y=monthly_fees["Total Fee"], name="Total Fee (AXL)", yaxis="y2", mode='lines', line=dict(color='red')))
 
 fig1.update_layout(
-    title="Monthly Fee Amount and Total Fees Over Time",
+    title="Total Transaction Fees Paid Over Time",
     xaxis=dict(title="Date"),
-    yaxis=dict(title="Fee Amount (AXL)", side="left"),
-    yaxis2=dict(title="Total Fee (AXL)", overlaying="y", side="right"),
+    yaxis=dict(title="AXL", side="left"),
+    yaxis2=dict(title="AXL", overlaying="y", side="right"),
     legend=dict(x=0.1, y=1.1, orientation="h")
 )
 col1.plotly_chart(fig1, use_container_width=True)
@@ -111,10 +140,17 @@ fig2.add_trace(go.Scatter(x=monthly_fees["Date"], y=monthly_fees["Average Fee pe
 fig2.add_trace(go.Scatter(x=monthly_fees["Date"], y=monthly_fees["Median Fee per TX"], mode='lines', name="Median Fee per TX (AXL)", yaxis="y2"))
 
 fig2.update_layout(
-    title="Average vs Median Transaction Fees Over Time",
+    title="Average & Median Transaction Fees Over Time",
     xaxis=dict(title="Date"),
-    yaxis=dict(title="Average Fee per TX (AXL)", side="left"),
-    yaxis2=dict(title="Median Fee per TX (AXL)", overlaying="y", side="right"),
+    yaxis=dict(title="AXL", side="left"),
+    yaxis2=dict(title="AXL", overlaying="y", side="right"),
     legend=dict(x=0.1, y=1.1, orientation="h")
 )
 col2.plotly_chart(fig2, use_container_width=True)
+
+# --- Row 3: Metrics ---
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Current Gas Used (Yesterday)", f"{current_gas['Current Gas Used']:,}")
+col2.metric("Current Gas Wanted (Yesterday)", f"{current_gas['Current Gas Wanted']:,}")
+col3.metric("Average Gas Used (Selected Period)", f"{average_gas['Average Gas Used']:.2f}")
+col4.metric("Average Gas Wanted (Selected Period)", f"{average_gas['Average Gas Wanted']:.2f}")
