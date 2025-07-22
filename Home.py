@@ -3,6 +3,8 @@ import streamlit as st
 st.set_page_config(layout="wide", page_title="Axelar Network Performance Analysis")
 
 st.title("Axelar Network Dashboard")
+# --- Display Image ---
+st.image("https://www.asiacryptotoday.com/wp-content/uploads/2024/02/Axelar-1068x558.jpg", caption="Axelar Network", use_container_width=True)
 
 st.markdown("""
 ### About Axelar
