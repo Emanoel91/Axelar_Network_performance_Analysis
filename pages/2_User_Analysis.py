@@ -24,7 +24,7 @@ timeframe = st.selectbox("Select Time Frame", ["day", "week", "month"])
 start_date = st.date_input("Start Date", value=pd.to_datetime("2022-01-01"))
 end_date = st.date_input("End Date", value=pd.to_datetime("today"))
 
-# --- تابع کمکی برای تاریخ کلان بر اساس Time Frame ---
+# --- Helper for date truncation ---
 def truncate_date(date_col, timeframe):
     if timeframe == "day":
         return f"block_timestamp::date"
@@ -123,7 +123,7 @@ tab2 AS (
     )
     SELECT date_trunc('{timeframe}', first_tx) AS "Date", COUNT(DISTINCT tx_from) AS "New Users"
     FROM tab10
-    where first_tx::date >= '{start_date}'
+    WHERE first_tx::date >= '{start_date}'
           AND first_tx::date <= '{end_date}'
     GROUP BY 1
 )
@@ -132,8 +132,7 @@ FROM tab1
 LEFT JOIN tab2 ON tab1."Date" = tab2."Date"
 ORDER BY tab1."Date"
 """
-    df = pd.read_sql(query, conn)
-    return df
+    return pd.read_sql(query, conn)
 
 @st.cache_data
 def load_growth_over_time(start_date, end_date, timeframe):
@@ -152,8 +151,7 @@ def load_growth_over_time(start_date, end_date, timeframe):
     GROUP BY 1
     ORDER BY 1
     """
-    df = pd.read_sql(query, conn)
-    return df
+    return pd.read_sql(query, conn)
 
 @st.cache_data
 def load_distribution_txs_count(start_date, end_date):
@@ -171,8 +169,7 @@ def load_distribution_txs_count(start_date, end_date):
     GROUP BY 1
     ORDER BY 1
     """
-    df = pd.read_sql(query, conn)
-    return df
+    return pd.read_sql(query, conn)
 
 @st.cache_data
 def load_distribution_days_activity(start_date, end_date):
@@ -196,8 +193,7 @@ def load_distribution_days_activity(start_date, end_date):
     GROUP BY 1
     ORDER BY "Class"
     """
-    df = pd.read_sql(query, conn)
-    return df
+    return pd.read_sql(query, conn)
 
 # --- Load Data ---
 total_users = load_total_users(start_date, end_date)
@@ -213,7 +209,7 @@ col1, col2 = st.columns(2)
 col1.metric("Total number of Axelar network users", f"{total_users:,}")
 col2.metric("Median Number of User Transactions", f"{median_user_tx}")
 
-# --- Helper function to show growth with correct delta_color ---
+# --- Growth Metrics Display ---
 def display_growth_metric(label, value):
     if value > 0:
         st.metric(label=label, value=f"{value}%", delta=f"▲ {value}%", delta_color="normal")
@@ -222,7 +218,7 @@ def display_growth_metric(label, value):
     else:
         st.metric(label=label, value=f"{value}%", delta="0%", delta_color="off")
 
-# --- Row 2 & 3: User Growth Percentage ---
+# --- Row 2 & 3: Growth Metrics ---
 col3, col4 = st.columns(2)
 with col3:
     display_growth_metric("User Growth Percentage: 1D", user_growth["User Change (1D)"])
@@ -237,7 +233,7 @@ with col6:
 
 # --- Row 4: Axelar Users Over Time ---
 st.markdown("---")
-st.markdown("<h4 style='font-size:20px;'>Axelar Users Over Time</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='font-size:16px;'>Axelar Users Over Time</h4>", unsafe_allow_html=True)
 
 fig1 = go.Figure()
 fig1.add_trace(go.Bar(x=users_over_time_df['Date'], y=users_over_time_df['New Users'],
@@ -259,7 +255,7 @@ st.plotly_chart(fig1, use_container_width=True)
 # --- Row 5: Two charts side by side ---
 col7, col8 = st.columns(2)
 with col7:
-    st.markdown("<h4 style='font-size:20px;'>Growth of Axelar Network Users Over Time</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-size:16px;'>Growth of Axelar Network Users Over Time</h4>", unsafe_allow_html=True)
     fig2 = px.bar(growth_over_time_df, x='Date', y='Total Users')
     fig2.update_layout(
         xaxis=dict(title='Date', title_font=dict(size=12), tickfont=dict(size=10)),
@@ -268,17 +264,17 @@ with col7:
     st.plotly_chart(fig2, use_container_width=True)
 
 with col8:
-    st.markdown("<h4 style='font-size:20px;'>Distribution of Users Based on the TXs Count</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the TXs Count</h4>", unsafe_allow_html=True)
     fig3 = px.bar(distribution_txs_df, x='TXs Count', y='Users Count')
     fig3.update_layout(
         xaxis=dict(title='TXs Count', title_font=dict(size=12), tickfont=dict(size=10)),
-        yaxis=dict(title='Users Count', title_font=dict(size=12), tickfont=dict(size=10))
+        yaxis=dict(title='Users Count', title_font=dict(size=12), tickfont=dict(size=10), type='log')
     )
     st.plotly_chart(fig3, use_container_width=True)
 
 # --- Row 6: Pie Chart ---
 st.markdown("---")
-st.markdown("<h4 style='font-size:20px;'>Distribution of Users Based on the Number of Days of Activity</h4>", unsafe_allow_html=True)
+st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the Number of Days of Activity</h4>", unsafe_allow_html=True)
 fig4 = px.pie(distribution_days_df, names='Class', values='Users Count',
               color='Class', color_discrete_map={
                   'n=1': 'lightblue',
