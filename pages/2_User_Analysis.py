@@ -355,13 +355,50 @@ def load_failed_txns_data(start_date, end_date):
     ORDER BY "False Txns Count" DESC
     """
     return pd.read_sql(query, conn)
-    
+
+@st.cache_data
+def load_new_users_year_quarter():
+    query = """
+    WITH tab10 AS (
+        SELECT tx_from, MIN(block_timestamp::date) AS first_tx
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded='true'
+        GROUP BY 1
+    )
+
+    SELECT date_trunc('year',first_tx) AS "Date",
+           COUNT(DISTINCT tx_from) AS "New Users",
+           CASE 
+               WHEN (first_tx::date>='2022-01-01' AND first_tx::date<='2022-03-31') OR
+                    (first_tx::date>='2023-01-01' AND first_tx::date<='2023-03-31') OR
+                    (first_tx::date>='2024-01-01' AND first_tx::date<='2024-03-31') OR
+                    (first_tx::date>='2025-01-01' AND first_tx::date<='2025-03-31') THEN 'Q1'
+               WHEN (first_tx::date>='2022-04-01' AND first_tx::date<='2022-06-30') OR
+                    (first_tx::date>='2023-04-01' AND first_tx::date<='2023-06-30') OR
+                    (first_tx::date>='2024-04-01' AND first_tx::date<='2024-06-30') OR
+                    (first_tx::date>='2025-04-01' AND first_tx::date<='2025-06-30') THEN 'Q2'
+               WHEN (first_tx::date>='2022-07-01' AND first_tx::date<='2022-09-30') OR
+                    (first_tx::date>='2023-07-01' AND first_tx::date<='2023-09-30') OR
+                    (first_tx::date>='2024-07-01' AND first_tx::date<='2024-09-30') OR
+                    (first_tx::date>='2025-07-01' AND first_tx::date<='2025-09-30') THEN 'Q3'
+               WHEN (first_tx::date>='2022-10-01' AND first_tx::date<='2022-12-31') OR
+                    (first_tx::date>='2023-10-01' AND first_tx::date<='2023-12-31') OR
+                    (first_tx::date>='2024-10-01' AND first_tx::date<='2024-12-31') OR
+                    (first_tx::date>='2025-10-01' AND first_tx::date<='2025-12-31') THEN 'Q4'
+           END AS "Quarter"
+    FROM tab10
+    WHERE first_tx::date>='2022-01-01'
+    GROUP BY 1,3
+    ORDER BY 1,3
+    """
+    return pd.read_sql(query, conn)
 
 # --- Load Data ----------------------------------------------------------------------------------------
 total_users = load_total_users(start_date, end_date)
 median_user_tx = load_median_user_tx(start_date, end_date)
 user_growth = load_user_growth()
 user_trends_df = load_2025_user_trends()
+new_users_df = load_new_users_year_quarter()
 
 users_over_time_df = load_users_over_time(start_date, end_date, timeframe)
 growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
@@ -535,3 +572,12 @@ st.dataframe(failed_txns_df.style.format({
     "False Txns Count per Day": "{:.2f}",
     "First Txn Date": lambda x: x.dt.strftime('%Y-%m-%d') if hasattr(x, "dt") else x
 }).highlight_max(subset=["False Txns Count"], color='tomato'))
+
+# --- Row 10: Side-by-Side Charts ---
+col1, col2 = st.columns(2)
+
+with col1:
+    st.plotly_chart(fig_year, use_container_width=True)
+
+with col2:
+    st.plotly_chart(fig_quarter, use_container_width=True)
