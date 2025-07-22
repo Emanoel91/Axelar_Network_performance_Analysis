@@ -150,6 +150,26 @@ def load_avg_fee_vs_txcount(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+@st.cache_data
+def load_correlation_coefficient(start_date, end_date):
+    query = f"""
+        WITH tab1 AS (
+            SELECT block_timestamp::date AS "Date",
+                   AVG(fee)/POW(10,6) AS "Average Fee per TX",
+                   COUNT(DISTINCT tx_id) AS "TXs Count"
+            FROM axelar.core.fact_transactions
+            WHERE block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+              AND fee_denom = 'uaxl'
+              AND tx_succeeded = 'true'
+            GROUP BY 1
+            ORDER BY 1
+        )
+        SELECT ROUND(CORR("Average Fee per TX", "TXs Count"), 2) AS cc
+        FROM tab1
+    """
+    return pd.read_sql(query, conn).iloc[0, 0]
+
 
 # --- Load Data ----------------------------------------------------------------------------------------
 current_gas = load_current_gas_usage()
@@ -159,6 +179,7 @@ fee_metrics = load_fee_metrics(start_date, end_date)
 monthly_fees = load_monthly_fees(start_date, end_date, timeframe)
 avg_gas_df = load_avg_gas_used_wanted(date_col, start_date, end_date)
 avg_fee_vs_txcount_df = load_avg_fee_vs_txcount(start_date, end_date)
+correlation_value = load_correlation_coefficient(start_date, end_date)
 
 # --- Row Data ------------------------------------------------------------------------------------------
 
@@ -251,3 +272,23 @@ fig_scatter.update_layout(
 )
 
 st.plotly_chart(fig_scatter, use_container_width=True)
+
+# --- Determine description based on correlation value ---
+if correlation_value == 0:
+    description = "No linear relationship."
+elif 0 < correlation_value <= 0.3 or -0.3 <= correlation_value < 0:
+    description = "Weak linear relationship."
+elif 0.3 < correlation_value <= 0.7 or -0.7 <= correlation_value < -0.3:
+    description = "Moderate linear relationship."
+elif 0.7 < correlation_value < 1.0 or -1.0 < correlation_value < -0.7:
+    description = "Strong linear relationship."
+elif abs(correlation_value) == 1.0:
+    description = "Perfect linear relationship."
+else:
+    description = "No clear interpretation."
+
+# --- Row 6 ---
+st.subheader("Correlation Between Average Fee per TX and Transaction Count")
+col1, col2 = st.columns(2)
+col1.metric("Correlation Coefficient (CC)", f"{correlation_value}")
+col2.write(description)
