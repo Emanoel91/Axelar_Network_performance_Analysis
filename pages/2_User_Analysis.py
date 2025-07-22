@@ -283,12 +283,52 @@ def load_avg_time_gap(start_date, end_date):
     ORDER BY 1
     """
     return pd.read_sql(query, conn)
+
+# 2025 User Transaction Trends ---
+@st.cache_data
+def load_2025_user_trends():
+    query = """
+    WITH table1 AS (
+        WITH tab1 AS (
+            SELECT tx_from AS user,
+                   MIN(DISTINCT block_timestamp::date) AS first_tx
+            FROM axelar.core.fact_transactions
+            GROUP BY 1
+        )
+        SELECT CASE 
+            WHEN DATE_TRUNC('year', first_tx) ILIKE '%2020-01-01%' THEN '2020 User'
+            WHEN DATE_TRUNC('year', first_tx) ILIKE '%2021-01-01%' THEN '2021 User'
+            WHEN DATE_TRUNC('year', first_tx) ILIKE '%2022-01-01%' THEN '2022 User'
+            WHEN DATE_TRUNC('year', first_tx) ILIKE '%2023-01-01%' THEN '2023 User'
+            WHEN DATE_TRUNC('year', first_tx) ILIKE '%2024-01-01%' THEN '2024 User'
+            WHEN DATE_TRUNC('year', first_tx) ILIKE '%2025-01-01%' THEN '2025 User'
+        END AS "User Type",
+        user
+        FROM tab1
+    ),
+    table2 AS (
+        SELECT tx_from AS user,
+               tx_id
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded = 'TRUE'
+          AND block_timestamp::date BETWEEN '2025-01-01' AND '2026-01-01'
+    )
+    SELECT "User Type",
+           COUNT(DISTINCT tx_id) AS "Txns Count"
+    FROM table1
+             LEFT JOIN table2 ON table1.user = table2.user
+    WHERE tx_id IS NOT NULL
+    GROUP BY 1
+    ORDER BY 2 DESC
+    """
+    return pd.read_sql(query, conn)
     
 
 # --- Load Data ----------------------------------------------------------------------------------------
 total_users = load_total_users(start_date, end_date)
 median_user_tx = load_median_user_tx(start_date, end_date)
 user_growth = load_user_growth()
+user_trends_df = load_2025_user_trends()
 
 users_over_time_df = load_users_over_time(start_date, end_date, timeframe)
 growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
@@ -438,3 +478,31 @@ fig.update_layout(margin=dict(t=0, b=0, l=0, r=0),
                   legend_title_text='Avg Time Gap')
 
 st.plotly_chart(fig, use_container_width=True)
+
+# --- Row 8: Side-by-Side Charts ---
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users based on Average Time between Transactions</h4>", unsafe_allow_html=True)
+    fig1 = px.pie(avg_time_gap_df,
+                 names="Avg Time Between TXs",
+                 values="User Count",
+                 color_discrete_sequence=px.colors.qualitative.Set3,
+                 hole=0.3)
+    fig1.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+                      legend_title_text='Avg Time Gap')
+    st.plotly_chart(fig1, use_container_width=True)
+
+with col2:
+    st.markdown("<h4 style='font-size:16px;'>2025 User Transaction Trends</h4>", unsafe_allow_html=True)
+    fig2 = px.bar(user_trends_df,
+                  x="Txns Count",
+                  y="User Type",
+                  orientation='h',
+                  color="User Type",
+                  color_discrete_sequence=px.colors.qualitative.Vivid)
+    fig2.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+                       xaxis_title="Transactions Count",
+                       yaxis_title="User Type",
+                       showlegend=False)
+    st.plotly_chart(fig2, use_container_width=True)
