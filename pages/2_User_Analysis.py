@@ -132,13 +132,11 @@ FROM tab1
 LEFT JOIN tab2 ON tab1."Date" = tab2."Date"
 ORDER BY tab1."Date"
 """
-
     df = pd.read_sql(query, conn)
     return df
 
 @st.cache_data
 def load_growth_over_time(start_date, end_date, timeframe):
-    date_trunc_col = truncate_date("first_tx", timeframe)
     query = f"""
     WITH tab10 AS (
         SELECT tx_from, MIN(block_timestamp::date) AS first_tx
@@ -151,7 +149,6 @@ def load_growth_over_time(start_date, end_date, timeframe):
     SELECT date_trunc('month', first_tx) AS "Date", COUNT(DISTINCT tx_from) AS "New Users",
            SUM(COUNT(DISTINCT tx_from)) OVER (ORDER BY date_trunc('month', first_tx)) AS "Total Users"
     FROM tab10
-    WHERE first_tx::date >= '2022-01-01'
     GROUP BY 1
     ORDER BY 1
     """
@@ -206,7 +203,6 @@ def load_distribution_days_activity(start_date, end_date):
 total_users = load_total_users(start_date, end_date)
 median_user_tx = load_median_user_tx(start_date, end_date)
 user_growth = load_user_growth()
-
 users_over_time_df = load_users_over_time(start_date, end_date, timeframe)
 growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
 distribution_txs_df = load_distribution_txs_count(start_date, end_date)
@@ -226,97 +222,69 @@ def display_growth_metric(label, value):
     else:
         st.metric(label=label, value=f"{value}%", delta="0%", delta_color="off")
 
-# --- Row 2: User Growth Percentage (1D, 7D) ---
+# --- Row 2 & 3: User Growth Percentage ---
 col3, col4 = st.columns(2)
 with col3:
     display_growth_metric("User Growth Percentage: 1D", user_growth["User Change (1D)"])
 with col4:
     display_growth_metric("User Growth Percentage: 7D", user_growth["User Change (7D)"])
 
-# --- Row 3: User Growth Percentage (30D, 1Y) ---
 col5, col6 = st.columns(2)
 with col5:
     display_growth_metric("User Growth Percentage: 30D", user_growth["User Change (30D)"])
 with col6:
     display_growth_metric("User Growth Percentage: 1Y", user_growth["User Change (1Y)"])
 
-# --- Row 4: Axelar Users Over Time (Stacked Bar + Line) ---
+# --- Row 4: Axelar Users Over Time ---
 st.markdown("---")
-st.subheader("Axelar Users Over Time")
+st.markdown("<h4 style='font-size:20px;'>Axelar Users Over Time</h4>", unsafe_allow_html=True)
 
 fig1 = go.Figure()
-fig1.add_trace(go.Bar(
-    x=users_over_time_df['Date'],
-    y=users_over_time_df['New Users'],
-    name='New Users',
-    marker_color='rgb(26, 118, 255)'
-))
-fig1.add_trace(go.Bar(
-    x=users_over_time_df['Date'],
-    y=users_over_time_df['Active Users'],
-    name='Active Users',
-    marker_color='rgb(55, 83, 109)'
-))
-fig1.add_trace(go.Scatter(
-    x=users_over_time_df['Date'],
-    y=users_over_time_df['Total Users'],
-    name='Total Users',
-    yaxis='y2',
-    mode='lines+markers',
-    line=dict(color='rgb(255, 0, 0)', width=2)
-))
+fig1.add_trace(go.Bar(x=users_over_time_df['Date'], y=users_over_time_df['New Users'],
+                      name='New Users', marker_color='rgb(26, 118, 255)'))
+fig1.add_trace(go.Bar(x=users_over_time_df['Date'], y=users_over_time_df['Active Users'],
+                      name='Active Users', marker_color='rgb(55, 83, 109)'))
+fig1.add_trace(go.Scatter(x=users_over_time_df['Date'], y=users_over_time_df['Total Users'],
+                          name='Total Users', mode='lines+markers',
+                          line=dict(color='rgb(255, 0, 0)', width=2)))
 
 fig1.update_layout(
     barmode='stack',
-    xaxis=dict(title='Date'),
-    yaxis=dict(title='Number of Users'),
-    yaxis2=dict(
-        title='Total Users',
-        overlaying='y',
-        side='right'
-    ),
+    xaxis=dict(title='Date', title_font=dict(size=12), tickfont=dict(size=10)),
+    yaxis=dict(title='Number of Users', title_font=dict(size=12), tickfont=dict(size=10)),
     legend=dict(x=0, y=1.2, orientation='h')
 )
-
 st.plotly_chart(fig1, use_container_width=True)
 
 # --- Row 5: Two charts side by side ---
 col7, col8 = st.columns(2)
-
 with col7:
-    st.subheader("Growth of Axelar Network Users Over Time")
-    fig2 = px.bar(
-        growth_over_time_df, 
-        x='Date', 
-        y='Total Users', 
-        labels={'Date': 'Date', 'Total Users': 'Total Users'}
+    st.markdown("<h4 style='font-size:20px;'>Growth of Axelar Network Users Over Time</h4>", unsafe_allow_html=True)
+    fig2 = px.bar(growth_over_time_df, x='Date', y='Total Users')
+    fig2.update_layout(
+        xaxis=dict(title='Date', title_font=dict(size=12), tickfont=dict(size=10)),
+        yaxis=dict(title='Total Users', title_font=dict(size=12), tickfont=dict(size=10))
     )
     st.plotly_chart(fig2, use_container_width=True)
 
 with col8:
-    st.subheader("Distribution of Users Based on the TXs Count")
-    fig3 = px.bar(
-        distribution_txs_df,
-        x='TXs Count',
-        y='Users Count',
-        labels={'TXs Count': 'TXs Count', 'Users Count': 'Users Count'}
+    st.markdown("<h4 style='font-size:20px;'>Distribution of Users Based on the TXs Count</h4>", unsafe_allow_html=True)
+    fig3 = px.bar(distribution_txs_df, x='TXs Count', y='Users Count')
+    fig3.update_layout(
+        xaxis=dict(title='TXs Count', title_font=dict(size=12), tickfont=dict(size=10)),
+        yaxis=dict(title='Users Count', title_font=dict(size=12), tickfont=dict(size=10))
     )
     st.plotly_chart(fig3, use_container_width=True)
 
 # --- Row 6: Pie Chart ---
 st.markdown("---")
-st.subheader("Distribution of Users Based on the Number of Days of Activity")
-
-fig4 = px.pie(
-    distribution_days_df,
-    names='Class',
-    values='Users Count',
-    color='Class',
-    color_discrete_map={
-        'n=1': 'lightblue',
-        '1<n<=7': 'orange',
-        '7<n<=30': 'green',
-        'n>30': 'purple'
-    }
-)
+st.markdown("<h4 style='font-size:20px;'>Distribution of Users Based on the Number of Days of Activity</h4>", unsafe_allow_html=True)
+fig4 = px.pie(distribution_days_df, names='Class', values='Users Count',
+              color='Class', color_discrete_map={
+                  'n=1': 'lightblue',
+                  '1<n<=7': 'orange',
+                  '7<n<=30': 'green',
+                  'n>30': 'purple'
+              })
+fig4.update_layout(legend_title_font=dict(size=12), legend_font=dict(size=10))
 st.plotly_chart(fig4, use_container_width=True)
