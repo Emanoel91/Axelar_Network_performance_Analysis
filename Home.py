@@ -13,10 +13,11 @@ a universal protocol, Axelar facilitates scalable, secure, and efficient interac
 build applications that operate across multiple chains without complex integrations. With its focus on simplifying cross-chain 
 connectivity, Axelar aims to drive the adoption of Web3 by creating a unified, interoperable blockchain environment.
 """)
+
 # --- Display Image ---
 st.image("https://i.postimg.cc/Y9yL6KRH/axelar.jpg", caption="", use_container_width=True)
 
-
+st.markdown("""
 🟠 Website: https://www.axelar.network/
 
 🔵 X: https://x.com/axelar
