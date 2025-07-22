@@ -92,8 +92,8 @@ def load_current_gas_usage():
 def load_average_gas_usage(start_date, end_date):
     query = f"""
         SELECT 
-            AVG(gas_used) AS "Average Gas Used",
-            AVG(gas_wanted) AS "Average Gas Wanted"
+            round(AVG(gas_used)) AS "Average Gas Used",
+            round(AVG(gas_wanted)) AS "Average Gas Wanted"
         FROM axelar.core.fact_transactions
         WHERE block_timestamp::date >= '{start_date}'
           AND block_timestamp::date <= '{end_date}'
