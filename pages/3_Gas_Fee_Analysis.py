@@ -233,7 +233,7 @@ fig_txn_fees = px.bar(txn_fees_df, x="Date", y="Txn Fees",
 col2.plotly_chart(fig_txn_fees, use_container_width=True)
 
 # --- Row 5: Scatter Plot ---
-st.subheader("Relationship Between Average Transaction Fee and Transaction Count")
+st.subheader("🔗Relationship Between Average Transaction Fee and Transaction Count")
 fig_scatter = px.scatter(
     avg_fee_vs_txcount_df,
     x="Average Fee per TX",
