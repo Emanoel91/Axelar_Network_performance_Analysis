@@ -204,8 +204,8 @@ fig_avg_gas.add_trace(go.Scatter(x=avg_gas_df["Date"], y=avg_gas_df["Average Gas
 fig_avg_gas.update_layout(
     title="Average Gas Used/Wanted Over Time",
     xaxis_title="Date",
-    yaxis=dict(title="Average Gas Wanted", side="left"),
-    yaxis2=dict(title="Average Gas Used", overlaying="y", side="right"),
+    yaxis=dict(title=" ", side="left"),
+    yaxis2=dict(title=" ", overlaying="y", side="right"),
     legend=dict(x=0, y=1)
 )
 col1.plotly_chart(fig_avg_gas, use_container_width=True)
