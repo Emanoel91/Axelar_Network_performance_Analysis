@@ -292,3 +292,7 @@ st.subheader("Correlation Between Average Fee per TX and Transaction Count")
 col1, col2 = st.columns(2)
 col1.metric("Correlation Coefficient (CC)", f"{correlation_value}")
 col2.write(description)
+
+# --- Row 7: Display Image ---
+st.subheader("Axelar Network Visual Overview")
+st.image("https://www.asiacryptotoday.com/wp-content/uploads/2024/02/Axelar-1068x558.jpg", caption="Axelar Network", use_column_width=True)
