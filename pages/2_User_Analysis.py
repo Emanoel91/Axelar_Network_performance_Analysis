@@ -220,7 +220,8 @@ when (sum(fee)/pow(10,6))>10 and (sum(fee)/pow(10,6))<100 then '10<V<=100 AXL'
 when (sum(fee)/pow(10,6))>100 and (sum(fee)/pow(10,6))<1000 then '100<V<=1k AXL'
 else 'V>1k AXL' end as "Class"
 from axelar.core.fact_transactions
-where block_timestamp::date>={start_date} and block_timestamp::date<={end_date}
+where block_timestamp::date>={start_date} 
+and block_timestamp::date<={end_date}
 group by 1)
 
 select "Class", count(distinct tx_from) as "Users Count"
