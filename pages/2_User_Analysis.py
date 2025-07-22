@@ -23,13 +23,12 @@ start_date = st.date_input("Start Date", value=pd.to_datetime("2022-01-01"))
 end_date = st.date_input("End Date", value=pd.to_datetime("today"))
 
 # --- Query Functions ---
-
 @st.cache_data
 def load_total_users(start_date, end_date):
     query = f"""
     SELECT COUNT(DISTINCT tx_from) AS "Total Users"
     FROM axelar.core.fact_transactions
-    WHERE tx_succeeded='true' 
+    WHERE tx_succeeded='true'
       AND block_timestamp::date >= '{start_date}'
       AND block_timestamp::date <= '{end_date}'
     """
@@ -41,10 +40,10 @@ def load_median_user_tx(start_date, end_date):
     WITH tab1 AS (
         SELECT tx_from, COUNT(DISTINCT tx_id) AS tx_count
         FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true' 
+        WHERE tx_succeeded='true'
           AND block_timestamp::date >= '{start_date}'
           AND block_timestamp::date <= '{end_date}'
-        GROUP BY tx_from
+        GROUP BY 1
     )
     SELECT ROUND(MEDIAN(tx_count)) AS "Median Number of User Transactions"
     FROM tab1
@@ -53,48 +52,41 @@ def load_median_user_tx(start_date, end_date):
 
 @st.cache_data
 def load_user_growth():
-    query = f"""
+    # توجه: این کوئری زمان ثابت (آخرین روز جاری) دارد و به انتخاب تاریخ وابسته نیست
+    query = """
     WITH tab1 AS (
         SELECT COUNT(DISTINCT tx_from) AS User1d
         FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true' 
-          AND block_timestamp::date = CURRENT_DATE - 1
+        WHERE tx_succeeded='true' AND block_timestamp::date = current_date -1
     ),
     tab2 AS (
         SELECT COUNT(DISTINCT tx_from) AS User2d
         FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true' 
-          AND block_timestamp::date = CURRENT_DATE - 2
+        WHERE tx_succeeded='true' AND block_timestamp::date = current_date -2
     ),
     tab3 AS (
         SELECT COUNT(DISTINCT tx_from) AS User7d
         FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true' 
-          AND block_timestamp::date = CURRENT_DATE - 8
+        WHERE tx_succeeded='true' AND block_timestamp::date = current_date -8
     ),
     tab4 AS (
         SELECT COUNT(DISTINCT tx_from) AS User30d
         FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true' 
-          AND block_timestamp::date = CURRENT_DATE - 31
+        WHERE tx_succeeded='true' AND block_timestamp::date = current_date -31
     ),
     tab5 AS (
         SELECT COUNT(DISTINCT tx_from) AS User365d
         FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true' 
-          AND block_timestamp::date = CURRENT_DATE - 366
+        WHERE tx_succeeded='true' AND block_timestamp::date = current_date -366
     )
     SELECT  
-        ROUND((((User1d - User2d) / NULLIFZERO(User2d)) * 100), 2) AS "User Change (1D)",
-        ROUND((((User1d - User7d) / NULLIFZERO(User7d)) * 100), 2) AS "User Change (7D)",
-        ROUND((((User1d - User30d) / NULLIFZERO(User30d)) * 100), 2) AS "User Change (30D)",
-        ROUND((((User1d - User365d) / NULLIFZERO(User365d)) * 100), 2) AS "User Change (1Y)"
+        ROUND((((User1d-User2d)/User2d)*100), 2) AS "User Change (1D)", 
+        ROUND((((User1d-User7d)/User7d)*100), 2) AS "User Change (7D)", 
+        ROUND((((User1d-User30d)/User30d)*100), 2) AS "User Change (30D)", 
+        ROUND((((User1d-User365d)/User365d)*100), 2) AS "User Change (1Y)" 
     FROM tab1, tab2, tab3, tab4, tab5
     """
     return pd.read_sql(query, conn).iloc[0]
-
-# Helper function to handle division by zero for Snowflake:
-# NULLIFZERO returns NULL if the argument is zero, preventing division by zero error.
 
 # --- Load Data ---
 total_users = load_total_users(start_date, end_date)
@@ -106,63 +98,25 @@ col1, col2 = st.columns(2)
 col1.metric("Total number of Axelar network users", f"{total_users:,}")
 col2.metric("Median Number of User Transactions", f"{median_user_tx}")
 
-# --- Row 2: User Growth 1D & 7D ---
-col3, col4 = st.columns(2)
-
-def colored_metric(label, value):
+# --- Helper function to show growth with correct delta_color ---
+def display_growth_metric(label, value):
     if value > 0:
-        delta_color = "normal"
-        delta = f"▲ {value}%"
-        delta_color = "green"
+        st.metric(label=label, value=f"{value}%", delta=f"▲ {value}%", delta_color="normal")
     elif value < 0:
-        delta = f"▼ {abs(value)}%"
-        delta_color = "red"
+        st.metric(label=label, value=f"{value}%", delta=f"▼ {abs(value)}%", delta_color="inverse")
     else:
-        delta = "0%"
-        delta_color = "normal"
-    col = st.columns(1)[0]
-    # We can use st.metric with delta_color param available in latest Streamlit
-    # but if not available, use simple metric with colored delta using markdown
-    return col.metric(label, f"{value}%", delta=delta, delta_color=delta_color)
+        st.metric(label=label, value=f"{value}%", delta="0%", delta_color="off")
 
+# --- Row 2: User Growth Percentage (1D, 7D) ---
+col3, col4 = st.columns(2)
 with col3:
-    st.metric(
-        label="User Growth Percentage: 1D",
-        value=f"{user_growth['User Change (1D)']}%",
-        delta=f"{user_growth['User Change (1D)']}%",
-        delta_color="normal" if user_growth['User Change (1D)'] == 0 else ("inverse" if user_growth['User Change (1D)'] < 0 else "normal")
-    )
-    # Better color handling below:
-    if user_growth["User Change (1D)"] > 0:
-        st.metric("User Growth Percentage: 1D", f"{user_growth['User Change (1D)']}%", delta=f"▲ {user_growth['User Change (1D)']}%", delta_color="green")
-    elif user_growth["User Change (1D)"] < 0:
-        st.metric("User Growth Percentage: 1D", f"{user_growth['User Change (1D)']}%", delta=f"▼ {abs(user_growth['User Change (1D)'])}%", delta_color="red")
-    else:
-        st.metric("User Growth Percentage: 1D", f"{user_growth['User Change (1D)']}%", delta="0%")
-
+    display_growth_metric("User Growth Percentage: 1D", user_growth["User Change (1D)"])
 with col4:
-    if user_growth["User Change (7D)"] > 0:
-        st.metric("User Growth Percentage: 7D", f"{user_growth['User Change (7D)']}%", delta=f"▲ {user_growth['User Change (7D)']}%", delta_color="green")
-    elif user_growth["User Change (7D)"] < 0:
-        st.metric("User Growth Percentage: 7D", f"{user_growth['User Change (7D)']}%", delta=f"▼ {abs(user_growth['User Change (7D)'])}%", delta_color="red")
-    else:
-        st.metric("User Growth Percentage: 7D", f"{user_growth['User Change (7D)']}%", delta="0%")
+    display_growth_metric("User Growth Percentage: 7D", user_growth["User Change (7D)"])
 
-# --- Row 3: User Growth 30D & 1Y ---
+# --- Row 3: User Growth Percentage (30D, 1Y) ---
 col5, col6 = st.columns(2)
-
 with col5:
-    if user_growth["User Change (30D)"] > 0:
-        st.metric("User Growth Percentage: 30D", f"{user_growth['User Change (30D)']}%", delta=f"▲ {user_growth['User Change (30D)']}%", delta_color="green")
-    elif user_growth["User Change (30D)"] < 0:
-        st.metric("User Growth Percentage: 30D", f"{user_growth['User Change (30D)']}%", delta=f"▼ {abs(user_growth['User Change (30D)'])}%", delta_color="red")
-    else:
-        st.metric("User Growth Percentage: 30D", f"{user_growth['User Change (30D)']}%", delta="0%")
-
+    display_growth_metric("User Growth Percentage: 30D", user_growth["User Change (30D)"])
 with col6:
-    if user_growth["User Change (1Y)"] > 0:
-        st.metric("User Growth Percentage: 1Y", f"{user_growth['User Change (1Y)']}%", delta=f"▲ {user_growth['User Change (1Y)']}%", delta_color="green")
-    elif user_growth["User Change (1Y)"] < 0:
-        st.metric("User Growth Percentage: 1Y", f"{user_growth['User Change (1Y)']}%", delta=f"▼ {abs(user_growth['User Change (1Y)'])}%", delta_color="red")
-    else:
-        st.metric("User Growth Percentage: 1Y", f"{user_growth['User Change (1Y)']}%", delta="0%")
+    display_growth_metric("User Growth Percentage: 1Y", user_growth["User Change (1Y)"])
