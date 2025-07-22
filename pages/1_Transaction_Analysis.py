@@ -6,7 +6,7 @@ import plotly.express as px
 # --- Wide Layout ---
 st.set_page_config(layout="wide")
 
-st.title("Axelar Network: Transaction Analysis")
+st.title("Axelar Network: Transaction Analysis⛓")
 
 # --- Snowflake Connection ---
 conn = snowflake.connector.connect(
