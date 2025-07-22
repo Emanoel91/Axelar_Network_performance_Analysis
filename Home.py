@@ -18,9 +18,9 @@ connectivity, Axelar aims to drive the adoption of Web3 by creating a unified, i
 st.image("https://i.postimg.cc/s2HY308v/axelar.jpg", caption="", use_container_width=True)
 
 st.markdown("""
-🟠 Website: https://www.axelar.network/
+Website: https://www.axelar.network/
 
-🔵 X: https://x.com/axelar
+X: https://x.com/axelar
 
 """)
 
