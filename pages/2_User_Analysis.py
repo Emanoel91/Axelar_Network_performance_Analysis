@@ -209,39 +209,23 @@ def load_distribution_days_activity(start_date, end_date):
 # --- New Query 9: Distribution of Users by Fee Paid ---
 @st.cache_data
 def load_distribution_fee_paid(start_date, end_date):
-    check_query = "SELECT * FROM axelar.core.fact_transactions LIMIT 1"
-    sample_df = pd.read_sql(check_query, conn)
-    fee_column = None
-    for col in ["tx_fee", "fee", "transaction_fee"]:
-        if col in sample_df.columns:
-            fee_column = col
-            break
     
-    if fee_column is None:
-        st.warning("No fee column found in axelar.core.fact_transactions")
-        return pd.DataFrame(columns=["Class", "Users Count"])
-
     query = f"""
-    WITH tab1 AS (
-        SELECT tx_from,
-               SUM(CAST({fee_column} AS FLOAT)) AS total_fee,
-               CASE  
-                   WHEN SUM(CAST({fee_column} AS FLOAT)) <= 0.01 THEN '<=0.01 AXL'
-                   WHEN SUM(CAST({fee_column} AS FLOAT)) > 0.01 AND SUM(CAST({fee_column} AS FLOAT)) <= 0.1 THEN '0.01 - 0.1 AXL'
-                   WHEN SUM(CAST({fee_column} AS FLOAT)) > 0.1 AND SUM(CAST({fee_column} AS FLOAT)) <= 1 THEN '0.1 - 1 AXL'
-                   WHEN SUM(CAST({fee_column} AS FLOAT)) > 1 AND SUM(CAST({fee_column} AS FLOAT)) <= 10 THEN '1 - 10 AXL'
-                   ELSE '>10 AXL'
-               END AS "Class"
-        FROM axelar.core.fact_transactions
-        WHERE tx_succeeded = 'true'
-          AND block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-        GROUP BY 1
-    )
-    SELECT "Class", COUNT(DISTINCT tx_from) AS "Users Count"
-    FROM tab1
-    GROUP BY 1
-    ORDER BY "Users Count" DESC
+    with tab1 as (select tx_from, sum(fee)/pow(10,6), case 
+when (sum(fee)/pow(10,6))<=0.01 then 'V<=0.01 AXL'
+when (sum(fee)/pow(10,6))>0.01 and (sum(fee)/pow(10,6))<0.1 then '0.01<V<=0.1 AXL'
+when (sum(fee)/pow(10,6))>0.1 and (sum(fee)/pow(10,6))<1 then '0.1<V<=1 AXL'
+when (sum(fee)/pow(10,6))>1 and (sum(fee)/pow(10,6))<10 then '1<V<=10 AXL'
+when (sum(fee)/pow(10,6))>10 and (sum(fee)/pow(10,6))<100 then '10<V<=100 AXL'
+when (sum(fee)/pow(10,6))>100 and (sum(fee)/pow(10,6))<1000 then '100<V<=1k AXL'
+else 'V>1k AXL' end as "Class"
+from axelar.core.fact_transactions
+where block_timestamp::date>={start_date} and block_timestamp::date<={end_date}
+group by 1)
+
+select "Class", count(distinct tx_from) as "Users Count"
+from tab1
+group by 1
     """
     return pd.read_sql(query, conn)
 
