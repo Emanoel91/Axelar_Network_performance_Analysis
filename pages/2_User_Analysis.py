@@ -575,32 +575,26 @@ st.dataframe(failed_txns_df.style.format({
 
 # --- Row 10: Side-by-Side Charts ---
 
-new_users_df['Year'] = new_users_df['Date'].dt.year.astype(str)
+# نمودار اول: تغییرات سالانه
+fig_year = px.bar(
+    new_users_df.groupby("Date", as_index=False)["New Users"].sum(),
+    x="Date",
+    y="New Users",
+    title="New Users per Year on Axelar Network"
+)
 
-import plotly.express as px
-
-fig_year = px.bar(new_users_df.groupby('Year')['New Users'].sum().reset_index(),
-                  x='Year', y='New Users',
-                  title='New Users Per Year',
-                  labels={'Year':'Year', 'New Users':'Number of New Users'},
-                  text='New Users')
-
-fig_year.update_traces(textposition='outside')
-
-fig_quarter = px.bar(new_users_df,
-                     x='Year', y='New Users',
-                     color='Quarter',
-                     barmode='group',
-                     title='New Users by Quarter per Year',
-                     labels={'Year':'Year', 'New Users':'Number of New Users', 'Quarter':'Quarter'},
-                     text='New Users')
-
-fig_quarter.update_traces(textposition='outside')
+# نمودار دوم: تغییرات بر اساس کوارتر در هر سال
+fig_quarter = px.bar(
+    new_users_df,
+    x="Quarter",
+    y="New Users",
+    color="Quarter",
+    facet_col="Date",
+    title="New Users per Quarter (by Year)"
+)
 
 col1, col2 = st.columns(2)
-
 with col1:
     st.plotly_chart(fig_year, use_container_width=True)
-
 with col2:
     st.plotly_chart(fig_quarter, use_container_width=True)
