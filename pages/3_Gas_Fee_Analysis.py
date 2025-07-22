@@ -101,12 +101,48 @@ def load_average_gas_usage(start_date, end_date):
           AND tx_succeeded = 'true'
     """
     return pd.read_sql(query, conn).iloc[0]
-    
+
+@st.cache_data
+def load_avg_gas_used_wanted(date_col, start_date, end_date):
+    query = f"""
+        SELECT 
+            {date_col} AS "Date",
+            round(AVG(gas_used)) AS "Average Gas Used",
+            round(AVG(gas_wanted)) AS "Average Gas Wanted"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_txn_fees_per_year():
+    query = """
+        SELECT 
+            date_trunc('year', block_timestamp) AS "Date",
+            ROUND((SUM(fee) / POW(10, 6)), 2) AS "Txn Fees"
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded = 'TRUE'
+          AND block_timestamp::date >= '2022-01-01'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
+
+
 # --- Load Data ----------------------------------------------------------------------------------------
 current_gas = load_current_gas_usage()
+txn_fees_df = load_txn_fees_per_year()
 average_gas = load_average_gas_usage(start_date, end_date)
 fee_metrics = load_fee_metrics(start_date, end_date)
 monthly_fees = load_monthly_fees(start_date, end_date, timeframe)
+avg_gas_df = load_avg_gas_used_wanted(date_col, start_date, end_date)
+
 
 # --- Row Data ------------------------------------------------------------------------------------------
 
@@ -154,3 +190,28 @@ col1.metric("Current Gas Used (Current Date)", f"{current_gas['Current Gas Used'
 col2.metric("Current Gas Wanted (Current Date)", f"{current_gas['Current Gas Wanted']:,}")
 col3.metric("Average Gas Used (Selected Period)", f"{average_gas['Average Gas Used']:.2f}")
 col4.metric("Average Gas Wanted (Selected Period)", f"{average_gas['Average Gas Wanted']:.2f}")
+
+# --- Row 4: Charts ---
+col1, col2 = st.columns(2)
+
+# Chart 1: Average Gas Used/Wanted Over Time
+fig_avg_gas = go.Figure()
+fig_avg_gas.add_trace(go.Scatter(x=avg_gas_df["Date"], y=avg_gas_df["Average Gas Wanted"],
+                                 mode='lines+markers', name='Average Gas Wanted', yaxis='y1'))
+fig_avg_gas.add_trace(go.Scatter(x=avg_gas_df["Date"], y=avg_gas_df["Average Gas Used"],
+                                 mode='lines+markers', name='Average Gas Used', yaxis='y2'))
+
+fig_avg_gas.update_layout(
+    title="Average Gas Used/Wanted Over Time",
+    xaxis_title="Date",
+    yaxis=dict(title="Average Gas Wanted", side="left"),
+    yaxis2=dict(title="Average Gas Used", overlaying="y", side="right"),
+    legend=dict(x=0, y=1)
+)
+col1.plotly_chart(fig_avg_gas, use_container_width=True)
+
+# Chart 2: Total Transaction Fees per Year
+fig_txn_fees = px.bar(txn_fees_df, x="Date", y="Txn Fees",
+                      labels={"Txn Fees": "AXL", "Date": "Year"},
+                      title="Total Transaction Fees per Year")
+col2.plotly_chart(fig_txn_fees, use_container_width=True)
