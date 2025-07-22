@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import snowflake.connector
@@ -206,50 +207,6 @@ def load_distribution_days_activity(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
-# --- Query 9: Distribution of Fee Paid ---
-@st.cache_data
-def load_distribution_fee_paid(start_date, end_date):
-    query = f"""
-    WITH tab1 AS (
-        SELECT tx_from,
-               SUM(tx_fee) AS total_fee,
-               CASE  
-                   WHEN SUM(tx_fee) <= 0.01 THEN '<=0.01 AXL'
-                   WHEN SUM(tx_fee) > 0.01 AND SUM(tx_fee) <= 0.1 THEN '0.01 - 0.1 AXL'
-                   WHEN SUM(tx_fee) > 0.1 AND SUM(tx_fee) <= 1 THEN '0.1 - 1 AXL'
-                   WHEN SUM(tx_fee) > 1 AND SUM(tx_fee) <= 10 THEN '1 - 10 AXL'
-                   ELSE '>10 AXL'
-               END AS "Class"
-        FROM axelar.core.fact_transactions
-        WHERE tx_succeeded='true'
-          AND block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-        GROUP BY 1
-    )
-    SELECT "Class", COUNT(DISTINCT tx_from) AS "Users Count"
-    FROM tab1
-    GROUP BY 1
-    ORDER BY "Users Count" DESC
-    """
-    return pd.read_sql(query, conn)
-
-# --- Query 10: Top 1000 Users by Transactions ---
-@st.cache_data
-def load_top_users(start_date, end_date):
-    query = f"""
-    SELECT tx_from AS "User Address",
-           COUNT(DISTINCT tx_id) AS "Transactions",
-           SUM(tx_fee) AS "Total Fee Paid"
-    FROM axelar.core.fact_transactions
-    WHERE tx_succeeded='true'
-      AND block_timestamp::date >= '{start_date}'
-      AND block_timestamp::date <= '{end_date}'
-    GROUP BY 1
-    ORDER BY "Transactions" DESC
-    LIMIT 1000
-    """
-    return pd.read_sql(query, conn)
-
 # --- Load Data ---
 total_users = load_total_users(start_date, end_date)
 median_user_tx = load_median_user_tx(start_date, end_date)
@@ -259,8 +216,6 @@ users_over_time_df = load_users_over_time(start_date, end_date, timeframe)
 growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
 distribution_txs_df = load_distribution_txs_count(start_date, end_date)
 distribution_days_df = load_distribution_days_activity(start_date, end_date)
-distribution_fee_df = load_distribution_fee_paid(start_date, end_date)
-top_users_df = load_top_users(start_date, end_date)
 
 # --- Row 1: Metrics ---
 col1, col2 = st.columns(2)
@@ -366,21 +321,3 @@ fig4 = px.pie(
     }
 )
 st.plotly_chart(fig4, use_container_width=True)
-
-# --- Row 7: Two charts side by side (Query 9 and 10) ---
-col9, col10 = st.columns(2)
-
-with col9:
-    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the Amount of Fee Paid</h4>", unsafe_allow_html=True)
-    fig5 = px.pie(
-        distribution_fee_df,
-        names='Class',
-        values='Users Count',
-        color='Class',
-        color_discrete_sequence=px.colors.qualitative.Pastel
-    )
-    st.plotly_chart(fig5, use_container_width=True)
-
-with col10:
-    st.markdown("<h4 style='font-size:16px;'>Top 1000 Users by Transactions</h4>", unsafe_allow_html=True)
-    st.dataframe(top_users_df, use_container_width=True)
