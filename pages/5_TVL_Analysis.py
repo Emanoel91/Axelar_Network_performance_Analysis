@@ -56,7 +56,7 @@ if not dune_tvl.empty:
         x="Chain",
         y="TVL",
         color="Chain",
-        title="Top Chains by TVL",
+        title="Top Chains by TVL ($USD)",
         text=dune_tvl.head(15)["TVL"].apply(human_format)
     )
     fig.update_traces(textposition="outside")
