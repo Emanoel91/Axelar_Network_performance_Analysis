@@ -1,0 +1,206 @@
+import streamlit as st
+import pandas as pd
+import snowflake.connector
+import plotly.express as px
+import plotly.graph_objects as go
+import requests  # ← اضافه شده
+
+# --- Wide Layout ---
+st.set_page_config(layout="wide")
+
+st.title("Axelar Network: TVL Analysis💸")
+
+# --- Snowflake Connection ---
+conn = snowflake.connector.connect(
+    user=st.secrets["snowflake"]["user"],
+    password=st.secrets["snowflake"]["password"],
+    account=st.secrets["snowflake"]["account"],
+    warehouse="SNOWFLAKE_LEARNING_WH",
+    database="AXELAR",
+    schema="PUBLIC"
+)
+
+# --- Time Frame & Period Selection ---
+timeframe = st.selectbox("Select Time Frame", ["day", "week", "month"])
+start_date = st.date_input("Start Date", value=pd.to_datetime("2022-01-01"))
+end_date = st.date_input("End Date", value=pd.to_datetime("today"))
+
+# --- Helper function for date truncation based on timeframe ---
+def truncate_date(date_col, timeframe):
+    if timeframe == "day":
+        return f"block_timestamp::date"
+    elif timeframe == "week":
+        return f"date_trunc('week', block_timestamp)"
+    elif timeframe == "month":
+        return f"date_trunc('month', block_timestamp)"
+    else:
+        return "block_timestamp::date"
+
+date_col = truncate_date("block_timestamp", timeframe)
+
+# --- Query Functions ---------------------------------------------------------------------------------------
+@st.cache_data
+def load_blocks_stats_filtered(start_date, end_date):
+    query = f"""
+    SELECT COUNT(DISTINCT fact_blocks_id) AS "Blocks Count",
+           ROUND(AVG(tx_count)) AS "Average TX per Block"
+    FROM axelar.core.fact_blocks
+    WHERE block_timestamp::date >= '{start_date}'
+      AND block_timestamp::date <= '{end_date}'
+    """
+    return pd.read_sql(query, conn).iloc[0]
+
+@st.cache_data
+def load_blocks_stats_last24h():
+    query = """
+    SELECT COUNT(DISTINCT fact_blocks_id) AS "Blocks Count",
+           round(AVG(tx_count)) AS "Average TX per Block"
+    FROM axelar.core.fact_blocks
+    WHERE block_timestamp::date >= current_date - 1
+    """
+    return pd.read_sql(query, conn).iloc[0]
+
+@st.cache_data
+def load_blocks_over_time(start_date, end_date, timeframe):
+    date_col = truncate_date("block_timestamp", timeframe)
+    query = f"""
+    SELECT {date_col} AS "Date",
+           COUNT(DISTINCT fact_blocks_id) AS "Blocks Count",
+           ROUND(AVG(tx_count)) AS "Average TX per Block",
+           COUNT(DISTINCT validator_hash) AS "Validator Count",
+           SUM(COUNT(DISTINCT fact_blocks_id)) OVER (ORDER BY {date_col} ASC) AS "Total Blocks Count"
+    FROM axelar.core.fact_blocks
+    WHERE block_timestamp::date >= '{start_date}'
+      AND block_timestamp::date <= '{end_date}'
+    GROUP BY 1
+    ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_block_distribution(start_date, end_date):
+    query = f"""
+    WITH tab1 AS (
+        SELECT block_id,
+               CASE 
+                   WHEN tx_count <= 5 THEN 'n<=5 TXs'
+                   WHEN tx_count > 5 AND tx_count <= 10 THEN '5<n<=10 TXs'
+                   WHEN tx_count > 10 AND tx_count <= 20 THEN '10<n<=20 TXs'
+                   WHEN tx_count > 20 AND tx_count <= 50 THEN '20<n<=50 TXs'
+                   WHEN tx_count > 50 AND tx_count <= 100 THEN '50<n<=100 TXs'
+                   ELSE 'n>100 TXs'
+               END AS "Class"
+        FROM axelar.core.fact_blocks
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+    )
+    SELECT "Class", COUNT(DISTINCT block_id) AS "Block Count"
+    FROM tab1
+    GROUP BY 1
+    """
+    return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_top_blocks(start_date, end_date):
+    query = f"""
+    SELECT block_id AS "Block Number",
+           fact_blocks_id AS "Block ID",
+           tx_count AS "# of Transactions",
+           block_timestamp::date AS "Block Creation Date"
+    FROM axelar.core.fact_blocks
+    WHERE block_timestamp::date >= '{start_date}'
+      AND block_timestamp::date <= '{end_date}'
+    ORDER BY 3 DESC
+    LIMIT 5
+    """
+    return pd.read_sql(query, conn)
+
+# --- تابع جدید: گرفتن داده‌های Dune ---
+@st.cache_data
+def load_dune_tvl():
+    url = "https://api.dune.com/api/v1/query/5524904/results?api_key=kmCBMTxWKBxn6CVgCXhwDvcFL1fBp6rO"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        rows = data["result"]["rows"]  # گرفتن دیتا
+        return pd.DataFrame(rows)
+    else:
+        st.error(f"Failed to fetch Dune data: {response.status_code}")
+        return pd.DataFrame(columns=["Chain", "Token Symbol", "TVL"])
+
+# --- Load Data ----------------------------------------------------------------------------------------
+blocks_stats_filtered = load_blocks_stats_filtered(start_date, end_date)
+blocks_stats_last24h = load_blocks_stats_last24h()
+blocks_over_time = load_blocks_over_time(start_date, end_date, timeframe)
+block_distribution = load_block_distribution(start_date, end_date)
+top_blocks = load_top_blocks(start_date, end_date)
+dune_tvl = load_dune_tvl()  # ← داده‌های Dune
+
+# --- Row Data ------------------------------------------------------------------------------------------
+
+# --- Row 1: Metrics ---
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Number of Blocks Generated", f"{blocks_stats_filtered['Blocks Count']:,}")
+col2.metric("Avg Txn Count per Block", f"{blocks_stats_filtered['Average TX per Block']:.0f}")
+col3.metric("Number of Blocks Generated (Last 24h)", f"{blocks_stats_last24h['Blocks Count']:,}")
+col4.metric("Avg Txn Count per Block (Last 24h)", f"{blocks_stats_last24h['Average TX per Block']:.2f}")
+
+# --- Row 2 ---
+col1, col2 = st.columns(2)
+
+# --- Chart 1: Generated Blocks Over Time (bar + line) ---
+fig_blocks = go.Figure()
+fig_blocks.add_bar(
+    x=blocks_over_time["Date"],
+    y=blocks_over_time["Blocks Count"],
+    name="Blocks Count",
+    yaxis="y1"
+)
+fig_blocks.add_trace(go.Scatter(
+    x=blocks_over_time["Date"],
+    y=blocks_over_time["Total Blocks Count"],
+    name="Total Blocks Count",
+    yaxis="y2",
+    mode="lines+markers"
+))
+fig_blocks.update_layout(
+    title="Generated Blocks Over Time",
+    xaxis=dict(title=" "),
+    yaxis=dict(title="Blocks Count", side="left"),
+    yaxis2=dict(title="Total Blocks Count", overlaying="y", side="right"),
+    barmode="group"
+)
+col1.plotly_chart(fig_blocks, use_container_width=True)
+
+# --- Chart 2: Average Transaction per Block (line) ---
+fig_avg_tx = go.Figure()
+fig_avg_tx.add_trace(go.Scatter(
+    x=blocks_over_time["Date"],
+    y=blocks_over_time["Average TX per Block"],
+    mode="lines+markers",
+    name="Average TX per Block"
+))
+fig_avg_tx.update_layout(
+    title="Average Transaction per Block Over Time",
+    xaxis=dict(title=" "),
+    yaxis=dict(title="Txn count")
+)
+col2.plotly_chart(fig_avg_tx, use_container_width=True)
+
+# --- Row 3 ---
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("<h4 style='font-size:18px;'>🧱 5 Blocks with the Highest Number of Transactions</h4>", unsafe_allow_html=True)
+    st.dataframe(top_blocks, use_container_width=True)
+
+with col2:
+    fig_pie = px.pie(block_distribution,
+                     values='Block Count',
+                     names='Class',
+                     title='Distribution of Blocks Based on the TXs Count')
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+# --- Row 4: جدول داده‌های Dune ---
+st.markdown("<h4 style='font-size:18px;'>TVL of Different Chains</h4>", unsafe_allow_html=True)
+st.dataframe(dune_tvl, use_container_width=True)
