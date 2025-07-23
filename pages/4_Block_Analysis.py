@@ -177,8 +177,8 @@ col2.plotly_chart(fig_avg_tx, use_container_width=True)
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("🧱 5 Blocks Created with the Highest Number of Transactions")
-    st.dataframe(top_blocks, use_container_width=True)
+    st.markdown("<h4 style='font-size:18px;'>🧱 5 Blocks Created with the Highest Number of Transactions</h4>", unsafe_allow_html=True)
+    st.dataframe(df_top_blocks, use_container_width=True)
 
 with col2:
     fig_pie = px.pie(block_distribution,
