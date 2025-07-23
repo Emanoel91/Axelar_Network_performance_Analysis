@@ -130,7 +130,7 @@ def load_hour_day_data(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
-# --- Load Data ---
+# --- Row 1: Metrics ---
 df = load_main_data(timeframe, start_date, end_date)
 success_rate = load_success_rate(start_date, end_date)
 total_txs = load_total_txs(start_date, end_date)
@@ -138,7 +138,6 @@ tps_df = load_tps_data(timeframe, start_date, end_date)
 correlation = load_correlation_data(start_date, end_date)
 df_hour_day = load_hour_day_data(start_date, end_date)
 
-# --- Row 1: Metrics ---
 col1, col2 = st.columns(2)
 col1.metric("Current Success Rate of Transactions", f"{success_rate}%")
 col2.metric("Total Transactions Count", f"{total_txs:,}")
@@ -197,7 +196,6 @@ peak = df_hour_day.loc[df_hour_day["TXs Count"].idxmax()]
 peak_hour = int(peak["Hour"])
 peak_day = peak["Day Name"]
 peak_count = int(peak["TXs Count"])
-
 st.metric("Peak Activity Period", f"{peak_day}, Hour {peak_hour}", delta=f"{peak_count:,} TXs")
 
 # --- Row 9: 24h Transactions Comparison Across Chains ---
@@ -236,5 +234,8 @@ dune_df = load_dune_data()
 combined_df = pd.concat([axelar_24h, dune_df], ignore_index=True)
 combined_df = combined_df.sort_values(by="Total Transactions (24h)", ascending=False)
 
+def highlight_axelar(row):
+    return ['background-color: #FFF3CD' if row['Chain'] == 'Axelar' else '' for _ in row]
+
 st.subheader("24h Transactions Comparison Across Chains")
-st.dataframe(combined_df)
+st.dataframe(combined_df.style.apply(highlight_axelar, axis=1))
