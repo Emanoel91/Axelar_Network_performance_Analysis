@@ -29,8 +29,9 @@ dune_tvl = load_dune_tvl()
 
 if not dune_tvl.empty:
     # --- فیلتر جستجوی زنجیره ---
-    chain_list = dune_tvl["Chain"].unique().tolist()
-    selected_chain = st.selectbox("🔎 جستجوی زنجیره", chain_list, index=chain_list.index("Axelar") if "Axelar" in chain_list else 0)
+    chain_list = dune_tvl["Chain"].dropna().unique().tolist()
+    default_index = chain_list.index("Axelar") if "Axelar" in chain_list else 0
+    selected_chain = st.selectbox("🔎 جستجوی زنجیره", chain_list, index=default_index)
 
     # --- TVL زنجیره انتخابی ---
     selected_tvl = dune_tvl.loc[dune_tvl["Chain"] == selected_chain, "TVL"].sum()
@@ -38,23 +39,4 @@ if not dune_tvl.empty:
 
     # --- جدول ---
     st.markdown("<h4 style='font-size:18px;'>TVL of Different Chains</h4>", unsafe_allow_html=True)
-    st.dataframe(dune_tvl.style.format({"TVL": "{:,.0f}"}), use_container_width=True)
-
-    # --- نمودار میله‌ای ---
-    def human_format(num):
-        if num >= 1e9:
-            return f"{num/1e9:.1f}B"
-        elif num >= 1e6:
-            return f"{num/1e6:.1f}M"
-        elif num >= 1e3:
-            return f"{num/1e3:.1f}K"
-        else:
-            return str(int(num))
-
-    fig = px.bar(
-        dune_tvl.head(15),
-        x="Chain",
-        y="TVL",
-        color="Chain",
-        title="Top Chains by TVL",
-        text=dune_tvl.head(15)["TVL"].apply(human_format
+    st.dataframe(dune_tvl.style.format({"TVL": "{:,.0f}"}), use_container
