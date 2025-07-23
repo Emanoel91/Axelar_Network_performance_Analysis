@@ -2,13 +2,13 @@ import streamlit as st
 
 # --- Page Config: Tab Title & Icon ---
 st.set_page_config(
-    page_title="Axelar",
+    page_title="Axelar Network Performance Analysis",
     page_icon="https://axelarscan.io/logos/logo.png",
     layout="wide"
 )
 
 
-st.set_page_config(layout="wide", page_title="Axelar Network Performance Analysis")
+# st.set_page_config(layout="wide", page_title="Axelar Network Performance Analysis")
 
 st.title("📚Axelar Network Performance Analysis")
 
