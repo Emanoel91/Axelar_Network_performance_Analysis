@@ -127,7 +127,7 @@ fig_avg_tx.add_trace(go.Scatter(
     name="Average TX per Block"
 ))
 fig_avg_tx.update_layout(
-    title="Average Transaction per Block",
+    title="Average Transaction per Block Over Time",
     xaxis=dict(title=" "),
     yaxis=dict(title="Txn count")
 )
