@@ -174,24 +174,15 @@ fig_avg_tx.update_layout(
 col2.plotly_chart(fig_avg_tx, use_container_width=True)
 
 # --- Row 3 ---
-col1, col2 = st.columns([1, 1])
+col1, col2 = st.columns(2)
 
-# --- Left: Table for Top 5 Blocks ---
 with col1:
-    st.markdown("### 🧱 5 Blocks Created with the Highest Number of Transactions")
-    st.dataframe(
-        top_blocks.style.set_table_styles(
-            [{'selector': 'thead th', 'props': [('background-color', '#4CAF50'), ('color', 'white'), ('font-weight', 'bold')]}]
-        ).background_gradient(cmap='Blues', subset=["# of Transactions"])
-    )
+    st.subheader("🧱 5 Blocks Created with the Highest Number of Transactions")
+    st.dataframe(top_blocks, use_container_width=True)
 
-# --- Right: Pie Chart for Block Distribution ---
-fig_pie = px.pie(
-    block_distribution,
-    names="Class",
-    values="Block Count",
-    title="Distribution of Blocks Based on the TXs Count",
-    hole=0.4,
-    color_discrete_sequence=px.colors.qualitative.Set3
-)
-col2.plotly_chart(fig_pie, use_container_width=True)
+with col2:
+    fig_pie = px.pie(df_pie,
+                     values='Block Count',
+                     names='Class',
+                     title='Distribution of Blocks Based on the TXs Count')
+    st.plotly_chart(fig_pie, use_container_width=True)
