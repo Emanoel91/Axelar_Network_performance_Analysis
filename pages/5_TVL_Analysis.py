@@ -30,7 +30,7 @@ dune_tvl = load_dune_tvl()
 if not dune_tvl.empty:
     # --- فیلتر جستجوی زنجیره ---
     chain_list = dune_tvl["Chain"].unique().tolist()
-    selected_chain = st.selectbox("🔎 جستجوی زنجیره", chain_list, index=chain_list.index("Axelar") if "Axelar" in chain_list else 0)
+    selected_chain = st.selectbox("🔎 Choose your desired chain", chain_list, index=chain_list.index("Axelar") if "Axelar" in chain_list else 0)
 
     # --- TVL زنجیره انتخابی ---
     selected_tvl = dune_tvl.loc[dune_tvl["Chain"] == selected_chain, "TVL"].sum()
