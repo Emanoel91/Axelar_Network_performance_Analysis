@@ -14,7 +14,7 @@ connectivity, Axelar aims to drive the adoption of Web3 by creating a unified, i
 """)
 
 # --- Display Image ---
-st.image("https://assets.coingecko.com/coins/images/27277/standard/V-65_xQ1_400x400.jpeg?1696526329", caption="", use_container_width=True)
+st.image("https://i.postimg.cc/s2HY308v/axelar.jpg", caption="", use_container_width=True)
 
 st.markdown("""
 https://www.axelar.network/
