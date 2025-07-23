@@ -4,6 +4,13 @@ import snowflake.connector
 import plotly.express as px
 import plotly.graph_objects as go
 
+# --- Page Config: Tab Title & Icon ---
+st.set_page_config(
+    page_title="Axelar",
+    page_icon="https://axelarscan.io/logos/logo.png",
+    layout="wide"
+)
+
 # --- Wide Layout ---
 st.set_page_config(layout="wide")
 
