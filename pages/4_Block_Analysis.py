@@ -7,7 +7,7 @@ import plotly.graph_objects as go
 # --- Wide Layout ---
 st.set_page_config(layout="wide")
 
-st.title("Axelar Network: Gas Fee Analysis💨")
+st.title("Axelar Network: Block Analysis🧱")
 
 # --- Snowflake Connection ---
 conn = snowflake.connector.connect(
@@ -59,10 +59,28 @@ def load_blocks_stats_last24h():
     """
     return pd.read_sql(query, conn).iloc[0]
 
+@st.cache_data
+def load_blocks_over_time(start_date, end_date, timeframe):
+    date_col = truncate_date("block_timestamp", timeframe)
+    query = f"""
+    SELECT {date_col} AS "Date",
+           COUNT(DISTINCT fact_blocks_id) AS "Blocks Count",
+           ROUND(AVG(tx_count)) AS "Average TX per Block",
+           COUNT(DISTINCT validator_hash) AS "Validator Count",
+           SUM(COUNT(DISTINCT fact_blocks_id)) OVER (ORDER BY {date_col} ASC) AS "Total Blocks Count"
+    FROM axelar.core.fact_blocks
+    WHERE block_timestamp::date >= '{start_date}'
+      AND block_timestamp::date <= '{end_date}'
+    GROUP BY 1
+    ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
 
 # --- Load Data ----------------------------------------------------------------------------------------
 blocks_stats_filtered = load_blocks_stats_filtered(start_date, end_date)
 blocks_stats_last24h = load_blocks_stats_last24h()
+blocks_over_time = load_blocks_over_time(start_date, end_date, timeframe)
 
 # --- Row Data ------------------------------------------------------------------------------------------
 
@@ -72,3 +90,45 @@ col1.metric("Number of Blocks Generated", f"{blocks_stats_filtered['Blocks Count
 col2.metric("Avg Txn Count per Block", f"{blocks_stats_filtered['Average TX per Block']:.0f}")
 col3.metric("Number of Blocks Generated (Last 24h)", f"{blocks_stats_last24h['Blocks Count']:,}")
 col4.metric("Avg Txn Count per Block (Last 24h)", f"{blocks_stats_last24h['Average TX per Block']:.2f}")
+
+# --- Row 2 ---
+col1, col2 = st.columns(2)
+
+# --- Chart 1: Generated Blocks Over Time (bar + line) ---
+fig_blocks = go.Figure()
+fig_blocks.add_bar(
+    x=blocks_over_time["Date"],
+    y=blocks_over_time["Blocks Count"],
+    name="Blocks Count",
+    yaxis="y1"
+)
+fig_blocks.add_trace(go.Scatter(
+    x=blocks_over_time["Date"],
+    y=blocks_over_time["Total Blocks Count"],
+    name="Total Blocks Count",
+    yaxis="y2",
+    mode="lines+markers"
+))
+fig_blocks.update_layout(
+    title="Generated Blocks Over Time",
+    xaxis=dict(title=" "),
+    yaxis=dict(title="Blocks Count", side="left"),
+    yaxis2=dict(title="Total Blocks Count", overlaying="y", side="right"),
+    barmode="group"
+)
+col1.plotly_chart(fig_blocks, use_container_width=True)
+
+# --- Chart 2: Average Transaction per Block (line) ---
+fig_avg_tx = go.Figure()
+fig_avg_tx.add_trace(go.Scatter(
+    x=blocks_over_time["Date"],
+    y=blocks_over_time["Average TX per Block"],
+    mode="lines+markers",
+    name="Average TX per Block"
+))
+fig_avg_tx.update_layout(
+    title="Average Transaction per Block",
+    xaxis=dict(title=" "),
+    yaxis=dict(title="Txn count")
+)
+col2.plotly_chart(fig_avg_tx, use_container_width=True)
