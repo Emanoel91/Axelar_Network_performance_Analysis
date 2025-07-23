@@ -53,7 +53,7 @@ def load_blocks_stats_filtered(start_date, end_date):
 def load_blocks_stats_last24h():
     query = """
     SELECT COUNT(DISTINCT fact_blocks_id) AS "Blocks Count",
-           AVG(tx_count) AS "Average TX per Block"
+           round(AVG(tx_count)) AS "Average TX per Block"
     FROM axelar.core.fact_blocks
     WHERE block_timestamp::date >= current_date - 1
     """
