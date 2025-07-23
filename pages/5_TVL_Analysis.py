@@ -57,11 +57,11 @@ if not dune_tvl.empty:
         x="Chain",
         y="TVL",
         color="Chain",
-        title="🏆Top Chains by TVL",
+        title="Top Chains by TVL",
         text=dune_tvl.head(15)["TVL"].apply(human_format)
     )
     fig.update_traces(textposition="outside")
-    fig.update_layout(xaxis_title="", yaxis_title="$USD", showlegend=False)
+    fig.update_layout(xaxis_title="Chain", yaxis_title="TVL", showlegend=False)
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No data available.")
