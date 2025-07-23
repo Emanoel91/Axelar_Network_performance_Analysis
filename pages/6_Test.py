@@ -237,13 +237,14 @@ combined_df = pd.concat([axelar_24h, dune_df], ignore_index=True)
 combined_df = combined_df.sort_values(by="Total Transactions (24h)", ascending=False)
 
 row_colors = ['#FFF3CD' if chain == 'Axelar' else 'white' for chain in combined_df['Chain']]
+change_colors = ['green' if val >= 0 else 'red' for val in combined_df['% Change']]
 
 fig_table = go.Figure(data=[go.Table(
     header=dict(values=list(combined_df.columns),
                 fill_color='lightblue',
                 align='left'),
     cells=dict(values=[combined_df[col] for col in combined_df.columns],
-               fill_color=[row_colors],
+               fill_color=[row_colors, row_colors, change_colors],
                align='left'))
 ])
 
