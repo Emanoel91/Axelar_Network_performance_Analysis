@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import snowflake.connector
 import plotly.express as px
+import plotly.graph_objects as go
 import requests
 
 # --- Wide Layout ---
@@ -130,7 +131,7 @@ def load_hour_day_data(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
-# --- Row 1: Metrics ---
+# --- Load Data ---
 df = load_main_data(timeframe, start_date, end_date)
 success_rate = load_success_rate(start_date, end_date)
 total_txs = load_total_txs(start_date, end_date)
@@ -138,6 +139,7 @@ tps_df = load_tps_data(timeframe, start_date, end_date)
 correlation = load_correlation_data(start_date, end_date)
 df_hour_day = load_hour_day_data(start_date, end_date)
 
+# --- Row 1: Metrics ---
 col1, col2 = st.columns(2)
 col1.metric("Current Success Rate of Transactions", f"{success_rate}%")
 col2.metric("Total Transactions Count", f"{total_txs:,}")
@@ -234,8 +236,17 @@ dune_df = load_dune_data()
 combined_df = pd.concat([axelar_24h, dune_df], ignore_index=True)
 combined_df = combined_df.sort_values(by="Total Transactions (24h)", ascending=False)
 
-def highlight_axelar(row):
-    return ['background-color: #FFF3CD' if row['Chain'] == 'Axelar' else '' for _ in row]
+row_colors = ['#FFF3CD' if chain == 'Axelar' else 'white' for chain in combined_df['Chain']]
 
-st.subheader("24h Transactions Comparison Across Chains")
-st.dataframe(combined_df.style.apply(highlight_axelar, axis=1))
+fig_table = go.Figure(data=[go.Table(
+    header=dict(values=list(combined_df.columns),
+                fill_color='lightblue',
+                align='left'),
+    cells=dict(values=[combined_df[col] for col in combined_df.columns],
+               fill_color=[row_colors],
+               align='left'))
+])
+
+fig_table.update_layout(title="24h Transactions Comparison Across Chains", margin=dict(l=0, r=0, t=40, b=0))
+
+st.plotly_chart(fig_table, use_container_width=True)
