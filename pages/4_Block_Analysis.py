@@ -181,7 +181,7 @@ with col1:
     st.dataframe(top_blocks, use_container_width=True)
 
 with col2:
-    fig_pie = px.pie(df_pie,
+    fig_pie = px.pie(block_distribution,
                      values='Block Count',
                      names='Class',
                      title='Distribution of Blocks Based on the TXs Count')
