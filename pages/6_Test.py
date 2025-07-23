@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import snowflake.connector
 import plotly.express as px
+import requests
 
 # --- Wide Layout ---
 st.set_page_config(layout="wide")
@@ -198,3 +199,42 @@ peak_day = peak["Day Name"]
 peak_count = int(peak["TXs Count"])
 
 st.metric("Peak Activity Period", f"{peak_day}, Hour {peak_hour}", delta=f"{peak_count:,} TXs")
+
+# --- Row 9: 24h Transactions Comparison Across Chains ---
+@st.cache_data
+def load_axelar_24h():
+    query = """
+    WITH tab1 AS (
+        SELECT COUNT(DISTINCT tx_id) AS txn_24h
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= current_date - 1
+    ),
+    tab2 AS (
+        SELECT COUNT(DISTINCT tx_id) AS previous_txn_24h
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= current_date - 2
+          AND block_timestamp::date < current_date - 1
+    )
+    SELECT 
+        txn_24h AS "Total Transactions (24h)",
+        ROUND((((txn_24h - previous_txn_24h) / previous_txn_24h) * 100), 2) AS "% Change"
+    FROM tab1, tab2
+    """
+    return pd.read_sql(query, conn)
+
+@st.cache_data
+def load_dune_data():
+    url = "https://api.dune.com/api/v1/query/5527588/results?api_key=kmCBMTxWKBxn6CVgCXhwDvcFL1fBp6rO"
+    response = requests.get(url)
+    data = response.json()
+    return pd.DataFrame(data["result"]["rows"])
+
+axelar_24h = load_axelar_24h()
+axelar_24h.insert(0, "Chain", "Axelar")
+dune_df = load_dune_data()
+
+combined_df = pd.concat([axelar_24h, dune_df], ignore_index=True)
+combined_df = combined_df.sort_values(by="Total Transactions (24h)", ascending=False)
+
+st.subheader("24h Transactions Comparison Across Chains")
+st.dataframe(combined_df)
