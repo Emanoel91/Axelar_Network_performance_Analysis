@@ -47,15 +47,21 @@ st.markdown(
 )
 
 
-# --- Display Image ---
-st.image("https://i.postimg.cc/s2HY308v/axelar.jpg", caption="", use_container_width=True)
-
-st.markdown("""
-https://www.axelar.network/
-
-https://x.com/axelar
-
-""")
-
+# --- Links with Logos ---
+st.markdown(
+    """
+    <div style="font-size: 16px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="https://axelarscan.io/logos/logo.png" alt="Axelar" style="width:20px; height:20px;">
+            <a href="https://www.axelar.network/" target="_blank">Axelar Website</a>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <img src="https://cdn-icons-png.flaticon.com/512/5968/5968958.png" alt="X" style="width:20px; height:20px;">
+            <a href="https://x.com/axelar" target="_blank">Axelar X Account</a>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 
