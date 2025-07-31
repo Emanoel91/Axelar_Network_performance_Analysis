@@ -7,19 +7,32 @@ st.set_page_config(
     layout="wide"
 )
 
+# --- Title with Logo ---
+st.markdown(
+    """
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <img src="https://img.cryptorank.io/coins/axelar1663924228506.png" alt="Axelar" style="width:60px; height:60px;">
+        <h1 style="margin: 0;">Axelar Network Performance Analysis</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-# st.set_page_config(layout="wide", page_title="Axelar Network Performance Analysis")
+# --- Info Box ---
+st.markdown(
+    """
+    <div style="background-color: #c3c3c3; padding: 15px; border-radius: 10px; border: 1px solid #c3c3c3;">
+        Axelar Network is a decentralized blockchain platform designed to enable seamless interoperability between disparate blockchain ecosystems. 
+        Launched to address the fragmentation in the blockchain space, Axelar provides a robust infrastructure for cross-chain communication, 
+        allowing different blockchains to securely share data and transfer assets. By leveraging a decentralized network of validators and 
+        a universal protocol, Axelar facilitates scalable, secure, and efficient interactions across blockchains, empowering developers to 
+        build applications that operate across multiple chains without complex integrations. With its focus on simplifying cross-chain 
+        connectivity, Axelar aims to drive the adoption of Web3 by creating a unified, interoperable blockchain environment.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
-st.title("📚Axelar Network Performance Analysis")
-
-st.markdown("""
-Axelar Network is a decentralized blockchain platform designed to enable seamless interoperability between disparate blockchain ecosystems. 
-Launched to address the fragmentation in the blockchain space, Axelar provides a robust infrastructure for cross-chain communication, 
-allowing different blockchains to securely share data and transfer assets. By leveraging a decentralized network of validators and 
-a universal protocol, Axelar facilitates scalable, secure, and efficient interactions across blockchains, empowering developers to 
-build applications that operate across multiple chains without complex integrations. With its focus on simplifying cross-chain 
-connectivity, Axelar aims to drive the adoption of Web3 by creating a unified, interoperable blockchain environment.
-""")
 
 # --- Display Image ---
 st.image("https://i.postimg.cc/s2HY308v/axelar.jpg", caption="", use_container_width=True)
