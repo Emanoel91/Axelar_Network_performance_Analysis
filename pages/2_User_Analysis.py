@@ -16,6 +16,15 @@ st.set_page_config(layout="wide")
 
 st.title("Axelar Network: User Analysis👥")
 
+st.info(
+    "📊Charts initially display data for a default time range. Select a custom range to view results for your desired period."
+
+)
+
+st.info(
+    "⏳On-chain data retrieval may take a few moments. Please wait while the results load."
+)
+
 # --- Snowflake Connection ---
 conn = snowflake.connector.connect(
     user=st.secrets["snowflake"]["user"],
@@ -27,9 +36,9 @@ conn = snowflake.connector.connect(
 )
 
 # --- Time Frame & Period Selection ---
-timeframe = st.selectbox("Select Time Frame", ["day", "week", "month"])
+timeframe = st.selectbox("Select Time Frame", ["month", "week", "day"])
 start_date = st.date_input("Start Date", value=pd.to_datetime("2022-01-01"))
-end_date = st.date_input("End Date", value=pd.to_datetime("2025-06-01"))
+end_date = st.date_input("End Date", value=pd.to_datetime("2025-07-31"))
 
 # --- Helper function for date truncation based on timeframe ---
 def truncate_date(date_col, timeframe):
