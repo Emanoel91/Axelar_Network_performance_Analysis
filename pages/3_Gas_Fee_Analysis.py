@@ -312,20 +312,6 @@ fig_scatter.update_layout(
 
 st.plotly_chart(fig_scatter, use_container_width=True)
 
-# --- Determine description based on correlation value ---
-if correlation_value == 0:
-    description = "No linear relationship."
-elif 0 < correlation_value <= 0.3 or -0.3 <= correlation_value < 0:
-    description = "Weak linear relationship."
-elif 0.3 < correlation_value <= 0.7 or -0.7 <= correlation_value < -0.3:
-    description = "Moderate linear relationship."
-elif 0.7 < correlation_value < 1.0 or -1.0 < correlation_value < -0.7:
-    description = "Strong linear relationship."
-elif abs(correlation_value) == 1.0:
-    description = "Perfect linear relationship."
-else:
-    description = "No clear interpretation."
-    
 # --- Row (6) -------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_correlation_coefficient(start_date, end_date):
@@ -349,6 +335,19 @@ def load_correlation_coefficient(start_date, end_date):
 
 correlation_value = load_correlation_coefficient(start_date, end_date)
 
+# --- Determine description based on correlation value ---
+if correlation_value == 0:
+    description = "No linear relationship."
+elif 0 < correlation_value <= 0.3 or -0.3 <= correlation_value < 0:
+    description = "Weak linear relationship."
+elif 0.3 < correlation_value <= 0.7 or -0.7 <= correlation_value < -0.3:
+    description = "Moderate linear relationship."
+elif 0.7 < correlation_value < 1.0 or -1.0 < correlation_value < -0.7:
+    description = "Strong linear relationship."
+elif abs(correlation_value) == 1.0:
+    description = "Perfect linear relationship."
+else:
+    description = "No clear interpretation."
 # --- Row 6 ---
 st.subheader("Correlation Between Average Fee per TX and Transaction Count")
 col1, col2 = st.columns(2)
