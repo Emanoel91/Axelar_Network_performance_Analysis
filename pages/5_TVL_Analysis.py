@@ -122,7 +122,7 @@ st.title("📊 Axelar Token Data (from API)")
 # --- Load API Data ---
 @st.cache_data(ttl=3600)
 def load_axelar_api():
-    url = "https://example.com/api"  # آدرس واقعی API که اول فرستادی
+    url = "https://api.axelarscan.io/api/getTVL"  # آدرس واقعی API که اول فرستادی
     response = requests.get(url)
     if response.status_code == 200:
         return response.json()
