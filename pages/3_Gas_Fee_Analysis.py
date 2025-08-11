@@ -91,7 +91,7 @@ def truncate_date(date_col, timeframe):
 
 date_col = truncate_date("block_timestamp", timeframe)
 
-# --- Query Functions ---------------------------------------------------------------------------------------
+# --- Row (1) -------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_fee_metrics(start_date, end_date):
     query = f"""
@@ -108,6 +108,16 @@ def load_fee_metrics(start_date, end_date):
     """
     return pd.read_sql(query, conn).iloc[0]
 
+fee_metrics = load_fee_metrics(start_date, end_date)
+
+# --- Row 1: Metrics ---
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Fees Paid on the Axelar Network", f"{fee_metrics['Fee Amount']:,} AXL")
+col2.metric("Average Fee Paid per Transaction", f"{fee_metrics['Average Fee per TX']} AXL")
+col3.metric("Median Transaction Fees", f"{fee_metrics['Median Fee per TX']} AXL")
+col4.metric("Maximum Fee Paid in One Transaction", f"{fee_metrics['Max Fee']} AXL")
+    
+# --- Row (2) -------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_monthly_fees(start_date, end_date, timeframe):
     date_col = truncate_date("block_timestamp", timeframe)
@@ -129,120 +139,7 @@ def load_monthly_fees(start_date, end_date, timeframe):
     """
     return pd.read_sql(query, conn)
 
-@st.cache_data
-def load_current_gas_usage():
-    query = """
-        SELECT 
-            ROUND(AVG(gas_used)) AS "Current Gas Used",
-            ROUND(AVG(gas_wanted)) AS "Current Gas Wanted"
-        FROM axelar.core.fact_transactions
-        WHERE block_timestamp::date = CURRENT_DATE - 1
-          AND fee_denom = 'uaxl'
-          AND tx_succeeded = 'true'
-    """
-    return pd.read_sql(query, conn).iloc[0]
-
-@st.cache_data
-def load_average_gas_usage(start_date, end_date):
-    query = f"""
-        SELECT 
-            round(AVG(gas_used)) AS "Average Gas Used",
-            round(AVG(gas_wanted)) AS "Average Gas Wanted"
-        FROM axelar.core.fact_transactions
-        WHERE block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-          AND fee_denom = 'uaxl'
-          AND tx_succeeded = 'true'
-    """
-    return pd.read_sql(query, conn).iloc[0]
-
-@st.cache_data
-def load_avg_gas_used_wanted(date_col, start_date, end_date):
-    query = f"""
-        SELECT 
-            {date_col} AS "Date",
-            round(AVG(gas_used)) AS "Average Gas Used",
-            round(AVG(gas_wanted)) AS "Average Gas Wanted"
-        FROM axelar.core.fact_transactions
-        WHERE block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-          AND fee_denom = 'uaxl'
-          AND tx_succeeded = 'true'
-        GROUP BY 1
-        ORDER BY 1
-    """
-    return pd.read_sql(query, conn)
-
-@st.cache_data
-def load_txn_fees_per_year():
-    query = """
-        SELECT 
-            date_trunc('year', block_timestamp) AS "Date",
-            ROUND((SUM(fee) / POW(10, 6)), 2) AS "Txn Fees"
-        FROM axelar.core.fact_transactions
-        WHERE tx_succeeded = 'TRUE'
-          AND block_timestamp::date >= '2022-01-01'
-        GROUP BY 1
-        ORDER BY 1
-    """
-    return pd.read_sql(query, conn)
-
-@st.cache_data
-def load_avg_fee_vs_txcount(start_date, end_date):
-    query = f"""
-        SELECT 
-            block_timestamp::date AS "Date",
-            ROUND((AVG(fee) / POW(10, 6)), 5) AS "Average Fee per TX",
-            COUNT(DISTINCT tx_id) AS "TXs Count"
-        FROM axelar.core.fact_transactions
-        WHERE block_timestamp::date >= '{start_date}'
-          AND block_timestamp::date <= '{end_date}'
-          AND fee_denom = 'uaxl'
-          AND tx_succeeded = 'true'
-        GROUP BY 1
-        ORDER BY 1
-    """
-    return pd.read_sql(query, conn)
-
-@st.cache_data
-def load_correlation_coefficient(start_date, end_date):
-    query = f"""
-        WITH tab1 AS (
-            SELECT block_timestamp::date AS "Date",
-                   AVG(fee)/POW(10,6) AS "Average Fee per TX",
-                   COUNT(DISTINCT tx_id) AS "TXs Count"
-            FROM axelar.core.fact_transactions
-            WHERE block_timestamp::date >= '{start_date}'
-              AND block_timestamp::date <= '{end_date}'
-              AND fee_denom = 'uaxl'
-              AND tx_succeeded = 'true'
-            GROUP BY 1
-            ORDER BY 1
-        )
-        SELECT ROUND(CORR("Average Fee per TX", "TXs Count"), 2) AS cc
-        FROM tab1
-    """
-    return pd.read_sql(query, conn).iloc[0, 0]
-
-
-# --- Load Data ----------------------------------------------------------------------------------------
-current_gas = load_current_gas_usage()
-txn_fees_df = load_txn_fees_per_year()
-average_gas = load_average_gas_usage(start_date, end_date)
-fee_metrics = load_fee_metrics(start_date, end_date)
 monthly_fees = load_monthly_fees(start_date, end_date, timeframe)
-avg_gas_df = load_avg_gas_used_wanted(date_col, start_date, end_date)
-avg_fee_vs_txcount_df = load_avg_fee_vs_txcount(start_date, end_date)
-correlation_value = load_correlation_coefficient(start_date, end_date)
-
-# --- Row Data ------------------------------------------------------------------------------------------
-
-# --- Row 1: Metrics ---
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Fees Paid on the Axelar Network", f"{fee_metrics['Fee Amount']:,} AXL")
-col2.metric("Average Fee Paid per Transaction", f"{fee_metrics['Average Fee per TX']} AXL")
-col3.metric("Median Transaction Fees", f"{fee_metrics['Median Fee per TX']} AXL")
-col4.metric("Maximum Fee Paid in One Transaction", f"{fee_metrics['Max Fee']} AXL")
 
 # --- Row 2: Charts ---
 col1, col2 = st.columns(2)
@@ -275,12 +172,80 @@ fig2.update_layout(
 )
 col2.plotly_chart(fig2, use_container_width=True)
 
+# --- Row (3) -------------------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_current_gas_usage():
+    query = """
+        SELECT 
+            ROUND(AVG(gas_used)) AS "Current Gas Used",
+            ROUND(AVG(gas_wanted)) AS "Current Gas Wanted"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date = CURRENT_DATE - 1
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+    """
+    return pd.read_sql(query, conn).iloc[0]
+
+current_gas = load_current_gas_usage()
+
+@st.cache_data
+def load_average_gas_usage(start_date, end_date):
+    query = f"""
+        SELECT 
+            round(AVG(gas_used)) AS "Average Gas Used",
+            round(AVG(gas_wanted)) AS "Average Gas Wanted"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+    """
+    return pd.read_sql(query, conn).iloc[0]
+
+average_gas = load_average_gas_usage(start_date, end_date)
+
 # --- Row 3: Metrics ---
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Current Gas Used (Current Date)", f"{current_gas['Current Gas Used']:,}")
 col2.metric("Current Gas Wanted (Current Date)", f"{current_gas['Current Gas Wanted']:,}")
 col3.metric("Average Gas Used (Selected Period)", f"{average_gas['Average Gas Used']:.2f}")
 col4.metric("Average Gas Wanted (Selected Period)", f"{average_gas['Average Gas Wanted']:.2f}")
+    
+# --- Row (4) -------------------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_avg_gas_used_wanted(date_col, start_date, end_date):
+    query = f"""
+        SELECT 
+            {date_col} AS "Date",
+            round(AVG(gas_used)) AS "Average Gas Used",
+            round(AVG(gas_wanted)) AS "Average Gas Wanted"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
+avg_gas_df = load_avg_gas_used_wanted(date_col, start_date, end_date)
+
+@st.cache_data
+def load_txn_fees_per_year():
+    query = """
+        SELECT 
+            date_trunc('year', block_timestamp) AS "Date",
+            ROUND((SUM(fee) / POW(10, 6)), 2) AS "Txn Fees"
+        FROM axelar.core.fact_transactions
+        WHERE tx_succeeded = 'TRUE'
+          AND block_timestamp::date >= '2022-01-01'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
+txn_fees_df = load_txn_fees_per_year()
 
 # --- Row 4: Charts ---
 col1, col2 = st.columns(2)
@@ -306,6 +271,26 @@ fig_txn_fees = px.bar(txn_fees_df, x="Date", y="Txn Fees",
                       labels={"Txn Fees": "AXL", "Date": "Year"},
                       title="Total Transaction Fees per Year")
 col2.plotly_chart(fig_txn_fees, use_container_width=True)
+
+# --- Row (5) -------------------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_avg_fee_vs_txcount(start_date, end_date):
+    query = f"""
+        SELECT 
+            block_timestamp::date AS "Date",
+            ROUND((AVG(fee) / POW(10, 6)), 5) AS "Average Fee per TX",
+            COUNT(DISTINCT tx_id) AS "TXs Count"
+        FROM axelar.core.fact_transactions
+        WHERE block_timestamp::date >= '{start_date}'
+          AND block_timestamp::date <= '{end_date}'
+          AND fee_denom = 'uaxl'
+          AND tx_succeeded = 'true'
+        GROUP BY 1
+        ORDER BY 1
+    """
+    return pd.read_sql(query, conn)
+
+avg_fee_vs_txcount_df = load_avg_fee_vs_txcount(start_date, end_date)
 
 # --- Row 5: Scatter Plot ---
 st.subheader("🔗Relationship Between Average Transaction Fee and Transaction Count")
@@ -340,10 +325,32 @@ elif abs(correlation_value) == 1.0:
     description = "Perfect linear relationship."
 else:
     description = "No clear interpretation."
+    
+# --- Row (6) -------------------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_correlation_coefficient(start_date, end_date):
+    query = f"""
+        WITH tab1 AS (
+            SELECT block_timestamp::date AS "Date",
+                   AVG(fee)/POW(10,6) AS "Average Fee per TX",
+                   COUNT(DISTINCT tx_id) AS "TXs Count"
+            FROM axelar.core.fact_transactions
+            WHERE block_timestamp::date >= '{start_date}'
+              AND block_timestamp::date <= '{end_date}'
+              AND fee_denom = 'uaxl'
+              AND tx_succeeded = 'true'
+            GROUP BY 1
+            ORDER BY 1
+        )
+        SELECT ROUND(CORR("Average Fee per TX", "TXs Count"), 2) AS cc
+        FROM tab1
+    """
+    return pd.read_sql(query, conn).iloc[0, 0]
+
+correlation_value = load_correlation_coefficient(start_date, end_date)
 
 # --- Row 6 ---
 st.subheader("Correlation Between Average Fee per TX and Transaction Count")
 col1, col2 = st.columns(2)
 col1.metric("Correlation Coefficient (CC)", f"{correlation_value}")
 col2.write(description)
-
