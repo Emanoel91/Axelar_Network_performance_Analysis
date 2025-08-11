@@ -34,7 +34,7 @@ st.markdown(
 # --- Info Box ---
 st.markdown(
     """
-    <div style="background-color: #c3c3c3; padding: 15px; border-radius: 10px; border: 1px solid #c3c3c3;">
+    <div style="background-color: #b3ffc8; padding: 15px; border-radius: 10px; border: 1px solid #000000;">
         Axelar Network is a decentralized blockchain platform designed to enable seamless interoperability between disparate blockchain ecosystems. 
         Launched to address the fragmentation in the blockchain space, Axelar provides a robust infrastructure for cross-chain communication, 
         allowing different blockchains to securely share data and transfer assets. By leveraging a decentralized network of validators and 
