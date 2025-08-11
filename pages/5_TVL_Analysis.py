@@ -209,21 +209,10 @@ asset_type_df["Asset Type Label"] = asset_type_df["Asset Type"].apply(
 asset_type_summary = asset_type_df.groupby("Asset Type Label", as_index=False)["Total Asset Value (USD)"].sum()
 
 # --- نمایش در دو ستون ---
-col1, col2 = st.columns([1, 2])
+col1 = st.columns([1])
 
 with col1:
-    # KPI بزرگ
-    st.markdown(
-        f"""
-        <div style="background-color:#1E1E1E; padding:20px; border-radius:15px; text-align:center;">
-            <h2 style="color:#00FFAA; font-size:22px; margin-bottom:5px;">Total Axelar TVL</h2>
-            <h1 style="color:white; font-size:48px; font-weight:bold;">${total_axelar_tvl:,.0f}</h1>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-with col2:
+    
     # نمودار دونات
     fig_donut = px.pie(
         asset_type_summary,
