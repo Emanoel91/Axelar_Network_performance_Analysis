@@ -194,3 +194,46 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
+
+
+# --- محاسبه TVL کل با حذف Asset ID های تکراری ---
+unique_assets = df.drop_duplicates(subset=["Asset ID"])
+total_axelar_tvl = unique_assets["Total Asset Value (USD)"].sum()
+
+# --- آماده‌سازی داده برای نمودار ---
+asset_type_df = unique_assets.copy()
+asset_type_df["Asset Type Label"] = asset_type_df["Asset Type"].apply(
+    lambda x: "ITS" if str(x).lower() == "its" else "non-ITS"
+)
+asset_type_summary = asset_type_df.groupby("Asset Type Label", as_index=False)["Total Asset Value (USD)"].sum()
+
+# --- نمایش در دو ستون ---
+col1, col2 = st.columns([1, 2])
+
+with col1:
+    # KPI بزرگ
+    st.markdown(
+        f"""
+        <div style="background-color:#1E1E1E; padding:20px; border-radius:15px; text-align:center;">
+            <h2 style="color:#00FFAA; font-size:22px; margin-bottom:5px;">Total Axelar TVL</h2>
+            <h1 style="color:white; font-size:48px; font-weight:bold;">${total_axelar_tvl:,.0f}</h1>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+with col2:
+    # نمودار دونات
+    fig_donut = px.pie(
+        asset_type_summary,
+        values="Total Asset Value (USD)",
+        names="Asset Type Label",
+        hole=0.5,
+        color="Asset Type Label",
+        color_discrete_map={"ITS": "#00FFAA", "non-ITS": "#FF4B4B"},
+        title="Share of TVL by Asset Type"
+    )
+    fig_donut.update_traces(textposition="inside", textinfo="percent+label")
+    fig_donut.update_layout(showlegend=True)
+    st.plotly_chart(fig_donut, use_container_width=True)
