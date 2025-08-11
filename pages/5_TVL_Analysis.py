@@ -213,11 +213,14 @@ fig_asset_type.update_traces(textposition="inside", textinfo="percent+label")
 fig_asset_type.update_layout(showlegend=True)
 
 # --- آماده‌سازی داده برای Donut دوم (Chain) ---
-chain_summary = df.groupby("Chain", as_index=False)["Total Asset Value (USD)"].sum()
+# محاسبه TVL (USD) به صورت Total TVL * Price و گرد کردن
+df["TVL (USD)"] = (df["Total TVL"] * df["Price (USD)"]).round(0)
+
+chain_summary = df.groupby("Chain", as_index=False)["TVL (USD)"].sum()
 
 fig_chain = px.pie(
     chain_summary,
-    values="Total Asset Value (USD)",
+    values="TVL (USD)",
     names="Chain",
     hole=0.5,
     title="Share of TVL by Chain"
