@@ -91,7 +91,7 @@ def truncate_date(date_col, timeframe):
 date_col = truncate_date("block_timestamp", timeframe)
 
 # --- Query Functions ------------------------------------------------------------------------------------------------------------------------------------
-# --- Row 1 -----------------------------------------------------------------
+# --- Row 1,2,3 -----------------------------------------------------------------
 @st.cache_data
 def load_total_users(start_date, end_date):
     query = f"""
@@ -118,6 +118,14 @@ def load_median_user_tx(start_date, end_date):
     FROM tab1
     """
     return pd.read_sql(query, conn).iloc[0, 0]
+
+total_users = load_total_users(start_date, end_date)
+median_user_tx = load_median_user_tx(start_date, end_date)
+
+# --- Row 1: Metrics ---
+col1, col2 = st.columns(2)
+col1.metric("Total number of Axelar network users", f"{total_users:,}")
+col2.metric("Median Number of User Transactions", f"{median_user_tx}")
 
 @st.cache_data
 def load_user_growth():
@@ -156,6 +164,32 @@ def load_user_growth():
     """
     return pd.read_sql(query, conn).iloc[0]
 
+user_growth = load_user_growth()
+
+# --- Helper function to show growth with correct delta_color ---
+def display_growth_metric(label, value):
+    if value > 0:
+        st.metric(label=label, value=f"{value}%", delta=f"▲ {value}%", delta_color="normal")
+    elif value < 0:
+        st.metric(label=label, value=f"{value}%", delta=f"▼ {abs(value)}%", delta_color="inverse")
+    else:
+        st.metric(label=label, value=f"{value}%", delta="0%", delta_color="off")
+
+# --- Row 2: User Growth Percentage (1D, 7D) ---
+col3, col4 = st.columns(2)
+with col3:
+    display_growth_metric("User Growth Percentage: 1D", user_growth["User Change (1D)"])
+with col4:
+    display_growth_metric("User Growth Percentage: 7D", user_growth["User Change (7D)"])
+
+# --- Row 3: User Growth Percentage (30D, 1Y) ---
+col5, col6 = st.columns(2)
+with col5:
+    display_growth_metric("User Growth Percentage: 30D", user_growth["User Change (30D)"])
+with col6:
+    display_growth_metric("User Growth Percentage: 1Y", user_growth["User Change (1Y)"])
+
+# --- Row 4 -----------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_users_over_time(start_date, end_date, timeframe):
     date_trunc_col = truncate_date("block_timestamp", timeframe)
@@ -188,6 +222,44 @@ ORDER BY tab1."Date"
 """
     return pd.read_sql(query, conn)
 
+users_over_time_df = load_users_over_time(start_date, end_date, timeframe)
+
+# --- Row 4: Axelar Users Over Time (Stacked Bar + Line) ---
+st.markdown("---")
+st.markdown("<h4 style='font-size:16px;'>Axelar Users Over Time</h4>", unsafe_allow_html=True)
+
+fig1 = go.Figure()
+fig1.add_trace(go.Bar(
+    x=users_over_time_df['Date'],
+    y=users_over_time_df['New Users'],
+    name='New Users',
+    marker_color='rgb(26, 118, 255)'
+))
+fig1.add_trace(go.Bar(
+    x=users_over_time_df['Date'],
+    y=users_over_time_df['Active Users'],
+    name='Active Users',
+    marker_color='rgb(55, 83, 109)'
+))
+fig1.add_trace(go.Scatter(
+    x=users_over_time_df['Date'],
+    y=users_over_time_df['Total Users'],
+    name='Total Users',
+    mode='lines+markers',
+    line=dict(color='rgb(255, 0, 0)', width=2)
+))
+
+fig1.update_layout(
+    barmode='stack',
+    xaxis=dict(title='Date'),
+    yaxis=dict(title='Number of Users'),
+    legend=dict(x=0, y=1.2, orientation='h')
+)
+
+st.plotly_chart(fig1, use_container_width=True)
+
+# --- Row 5: left -------------------------------------------------------------------------------------------------------------------------------------------------------
+
 @st.cache_data
 def load_growth_over_time(start_date, end_date, timeframe):
     query = f"""
@@ -208,6 +280,9 @@ def load_growth_over_time(start_date, end_date, timeframe):
     """
     return pd.read_sql(query, conn)
 
+growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
+
+# --- Row 5: right -------------------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_distribution_txs_count(start_date, end_date):
     query = f"""
@@ -236,6 +311,36 @@ def load_distribution_txs_count(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+distribution_txs_df = load_distribution_txs_count(start_date, end_date)
+
+# --- Row 5: Two charts side by side ---
+col7, col8 = st.columns(2)
+
+with col7:
+    st.markdown("<h4 style='font-size:16px;'>Growth of Axelar Network Users Over Time</h4>", unsafe_allow_html=True)
+    fig2 = px.bar(
+        growth_over_time_df, 
+        x='Date', 
+        y='Total Users', 
+        labels={'Date': 'Date', 'Total Users': 'Total Users'}
+    )
+    st.plotly_chart(fig2, use_container_width=True)
+
+with col8:
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the TXs Count</h4>", unsafe_allow_html=True)
+    fig3 = px.pie(
+        distribution_txs_df,
+        names='TXs Count',
+        values='Users Count',
+        color='TXs Count',
+        color_discrete_sequence=px.colors.qualitative.Set3
+    )
+    fig3.update_layout(legend_title_font=dict(size=12), legend_font=dict(size=10))
+    st.plotly_chart(fig3, use_container_width=True)
+
+
+# --- Row 6: left -------------------------------------------------------------------------------------------------------------------------------------------------------
+
 @st.cache_data
 def load_distribution_days_activity(start_date, end_date):
     query = f"""
@@ -260,7 +365,9 @@ def load_distribution_days_activity(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
-# --- New Query 9: Distribution of Users by Fee Paid ---
+distribution_days_df = load_distribution_days_activity(start_date, end_date)
+
+# --- Row 6: right -------------------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_distribution_fee_paid(start_date, end_date):
     
@@ -284,6 +391,44 @@ group by 1
     """
     return pd.read_sql(query, conn)
 
+distribution_fee_df = load_distribution_fee_paid(start_date, end_date)
+
+# --- Row 6: Two Pie Charts Side by Side ---
+st.markdown("---")
+col9, col10 = st.columns(2)
+
+with col9:
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the Number of Days of Activity</h4>", unsafe_allow_html=True)
+    fig4 = px.pie(
+        distribution_days_df,
+        names='Class',
+        values='Users Count',
+        color='Class',
+        color_discrete_map={
+            'n=1': 'lightblue',
+            '1<n<=7': 'orange',
+            '7<n<=30': 'green',
+            'n>30': 'purple'
+        }
+    )
+    st.plotly_chart(fig4, use_container_width=True)
+
+with col10:
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on Total Fees Paid</h4>", unsafe_allow_html=True)
+    if not distribution_fee_df.empty:
+        fig5 = px.pie(
+            distribution_fee_df,
+            names='Class',
+            values='Users Count',
+            color='Class',
+            color_discrete_sequence=px.colors.qualitative.Set2
+        )
+        st.plotly_chart(fig5, use_container_width=True)
+    else:
+        st.info("No data available for fee distribution in the selected period.")
+    
+# --- Row 7 -------------------------------------------------------------------------------------------------------------------------------------------------------
+
 @st.cache_data
 def load_top_users(start_date, end_date):
     query = f"""
@@ -304,6 +449,14 @@ def load_top_users(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+top_users_df = load_top_users(start_date, end_date)
+
+# --- Row 7: Top 1000 Users Table ---
+st.markdown("---")
+st.markdown("<h4 style='font-size:16px;'>🔎 Axelar Network User Tracking: Top 1000 Users</h4>", unsafe_allow_html=True)
+st.dataframe(top_users_df, use_container_width=True)
+
+# --- Row 8: left -------------------------------------------------------------------------------------------------------------------------------------------------------
 # --- Distribution of Users based on Average Time between Transactions ---
 @st.cache_data
 def load_avg_time_gap(start_date, end_date):
@@ -338,6 +491,9 @@ def load_avg_time_gap(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+avg_time_gap_df = load_avg_time_gap(start_date, end_date)
+
+# --- Row 8: right -------------------------------------------------------------------------------------------------------------------------------------------------------
 # 2025 User Transaction Trends ---
 @st.cache_data
 def load_2025_user_trends():
@@ -377,6 +533,37 @@ def load_2025_user_trends():
     """
     return pd.read_sql(query, conn)
 
+user_trends_df = load_2025_user_trends()
+
+# --- Row 8: Side-by-Side Charts ---
+col1, col2 = st.columns(2)
+
+with col1:
+    st.markdown("<h4 style='font-size:16px;'>Distribution of Users based on Average Time between Transactions</h4>", unsafe_allow_html=True)
+    fig1 = px.pie(avg_time_gap_df,
+                 names="Avg Time Between TXs",
+                 values="User Count",
+                 color_discrete_sequence=px.colors.qualitative.Set3,
+                 hole=0.3)
+    fig1.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+                      legend_title_text='Avg Time Gap')
+    st.plotly_chart(fig1, use_container_width=True)
+
+with col2:
+    st.markdown("<h4 style='font-size:16px;'>2025 User Transaction Trends</h4>", unsafe_allow_html=True)
+    fig2 = px.bar(user_trends_df,
+                  x="Txns Count",
+                  y="User Type",
+                  orientation='h',
+                  color="User Type",
+                  color_discrete_sequence=px.colors.qualitative.Vivid)
+    fig2.update_layout(margin=dict(t=0, b=0, l=0, r=0),
+                       xaxis_title="Transactions Count",
+                       yaxis_title="User Type",
+                       showlegend=False)
+    st.plotly_chart(fig2, use_container_width=True)
+
+# --- Row 9 -------------------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_failed_txns_data(start_date, end_date):
     query = f"""
@@ -410,6 +597,19 @@ def load_failed_txns_data(start_date, end_date):
     """
     return pd.read_sql(query, conn)
 
+failed_txns_df = load_failed_txns_data(start_date, end_date)
+
+# --- Row 9: table ---
+st.markdown("### Addresses with the Most Failed Transactions on the Axelar Network")
+
+st.dataframe(failed_txns_df.style.format({
+    "False Txns Count": "{:,}",
+    "Number of Days of Activity": "{:,}",
+    "False Txns Count per Day": "{:.2f}",
+    "First Txn Date": lambda x: x.dt.strftime('%Y-%m-%d') if hasattr(x, "dt") else x
+}).highlight_max(subset=["False Txns Count"], color='tomato'))
+
+# --- Row 10: left -------------------------------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_new_users_year_quarter():
     query = """
@@ -447,185 +647,7 @@ def load_new_users_year_quarter():
     """
     return pd.read_sql(query, conn)
 
-# --- Load Data ----------------------------------------------------------------------------------------
-total_users = load_total_users(start_date, end_date)
-median_user_tx = load_median_user_tx(start_date, end_date)
-user_growth = load_user_growth()
-user_trends_df = load_2025_user_trends()
 new_users_df = load_new_users_year_quarter()
-
-users_over_time_df = load_users_over_time(start_date, end_date, timeframe)
-growth_over_time_df = load_growth_over_time(start_date, end_date, timeframe)
-distribution_txs_df = load_distribution_txs_count(start_date, end_date)
-distribution_days_df = load_distribution_days_activity(start_date, end_date)
-distribution_fee_df = load_distribution_fee_paid(start_date, end_date)
-top_users_df = load_top_users(start_date, end_date)
-avg_time_gap_df = load_avg_time_gap(start_date, end_date)
-failed_txns_df = load_failed_txns_data(start_date, end_date)
-
-# --- Row 1: Metrics ---
-col1, col2 = st.columns(2)
-col1.metric("Total number of Axelar network users", f"{total_users:,}")
-col2.metric("Median Number of User Transactions", f"{median_user_tx}")
-
-# --- Helper function to show growth with correct delta_color ---
-def display_growth_metric(label, value):
-    if value > 0:
-        st.metric(label=label, value=f"{value}%", delta=f"▲ {value}%", delta_color="normal")
-    elif value < 0:
-        st.metric(label=label, value=f"{value}%", delta=f"▼ {abs(value)}%", delta_color="inverse")
-    else:
-        st.metric(label=label, value=f"{value}%", delta="0%", delta_color="off")
-
-# --- Row 2: User Growth Percentage (1D, 7D) ---
-col3, col4 = st.columns(2)
-with col3:
-    display_growth_metric("User Growth Percentage: 1D", user_growth["User Change (1D)"])
-with col4:
-    display_growth_metric("User Growth Percentage: 7D", user_growth["User Change (7D)"])
-
-# --- Row 3: User Growth Percentage (30D, 1Y) ---
-col5, col6 = st.columns(2)
-with col5:
-    display_growth_metric("User Growth Percentage: 30D", user_growth["User Change (30D)"])
-with col6:
-    display_growth_metric("User Growth Percentage: 1Y", user_growth["User Change (1Y)"])
-
-# --- Row 4: Axelar Users Over Time (Stacked Bar + Line) ---
-st.markdown("---")
-st.markdown("<h4 style='font-size:16px;'>Axelar Users Over Time</h4>", unsafe_allow_html=True)
-
-fig1 = go.Figure()
-fig1.add_trace(go.Bar(
-    x=users_over_time_df['Date'],
-    y=users_over_time_df['New Users'],
-    name='New Users',
-    marker_color='rgb(26, 118, 255)'
-))
-fig1.add_trace(go.Bar(
-    x=users_over_time_df['Date'],
-    y=users_over_time_df['Active Users'],
-    name='Active Users',
-    marker_color='rgb(55, 83, 109)'
-))
-fig1.add_trace(go.Scatter(
-    x=users_over_time_df['Date'],
-    y=users_over_time_df['Total Users'],
-    name='Total Users',
-    mode='lines+markers',
-    line=dict(color='rgb(255, 0, 0)', width=2)
-))
-
-fig1.update_layout(
-    barmode='stack',
-    xaxis=dict(title='Date'),
-    yaxis=dict(title='Number of Users'),
-    legend=dict(x=0, y=1.2, orientation='h')
-)
-
-st.plotly_chart(fig1, use_container_width=True)
-
-# --- Row 5: Two charts side by side ---
-col7, col8 = st.columns(2)
-
-with col7:
-    st.markdown("<h4 style='font-size:16px;'>Growth of Axelar Network Users Over Time</h4>", unsafe_allow_html=True)
-    fig2 = px.bar(
-        growth_over_time_df, 
-        x='Date', 
-        y='Total Users', 
-        labels={'Date': 'Date', 'Total Users': 'Total Users'}
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-
-with col8:
-    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the TXs Count</h4>", unsafe_allow_html=True)
-    fig3 = px.pie(
-        distribution_txs_df,
-        names='TXs Count',
-        values='Users Count',
-        color='TXs Count',
-        color_discrete_sequence=px.colors.qualitative.Set3
-    )
-    fig3.update_layout(legend_title_font=dict(size=12), legend_font=dict(size=10))
-    st.plotly_chart(fig3, use_container_width=True)
-
-# --- Row 6: Two Pie Charts Side by Side ---
-st.markdown("---")
-col9, col10 = st.columns(2)
-
-with col9:
-    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on the Number of Days of Activity</h4>", unsafe_allow_html=True)
-    fig4 = px.pie(
-        distribution_days_df,
-        names='Class',
-        values='Users Count',
-        color='Class',
-        color_discrete_map={
-            'n=1': 'lightblue',
-            '1<n<=7': 'orange',
-            '7<n<=30': 'green',
-            'n>30': 'purple'
-        }
-    )
-    st.plotly_chart(fig4, use_container_width=True)
-
-with col10:
-    st.markdown("<h4 style='font-size:16px;'>Distribution of Users Based on Total Fees Paid</h4>", unsafe_allow_html=True)
-    if not distribution_fee_df.empty:
-        fig5 = px.pie(
-            distribution_fee_df,
-            names='Class',
-            values='Users Count',
-            color='Class',
-            color_discrete_sequence=px.colors.qualitative.Set2
-        )
-        st.plotly_chart(fig5, use_container_width=True)
-    else:
-        st.info("No data available for fee distribution in the selected period.")
-
-# --- Row 7: Top 1000 Users Table ---
-st.markdown("---")
-st.markdown("<h4 style='font-size:16px;'>🔎 Axelar Network User Tracking: Top 1000 Users</h4>", unsafe_allow_html=True)
-st.dataframe(top_users_df, use_container_width=True)
-
-# --- Row 8: Side-by-Side Charts ---
-col1, col2 = st.columns(2)
-
-with col1:
-    st.markdown("<h4 style='font-size:16px;'>Distribution of Users based on Average Time between Transactions</h4>", unsafe_allow_html=True)
-    fig1 = px.pie(avg_time_gap_df,
-                 names="Avg Time Between TXs",
-                 values="User Count",
-                 color_discrete_sequence=px.colors.qualitative.Set3,
-                 hole=0.3)
-    fig1.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-                      legend_title_text='Avg Time Gap')
-    st.plotly_chart(fig1, use_container_width=True)
-
-with col2:
-    st.markdown("<h4 style='font-size:16px;'>2025 User Transaction Trends</h4>", unsafe_allow_html=True)
-    fig2 = px.bar(user_trends_df,
-                  x="Txns Count",
-                  y="User Type",
-                  orientation='h',
-                  color="User Type",
-                  color_discrete_sequence=px.colors.qualitative.Vivid)
-    fig2.update_layout(margin=dict(t=0, b=0, l=0, r=0),
-                       xaxis_title="Transactions Count",
-                       yaxis_title="User Type",
-                       showlegend=False)
-    st.plotly_chart(fig2, use_container_width=True)
-
-# --- Row 9: table ---
-st.markdown("### Addresses with the Most Failed Transactions on the Axelar Network")
-
-st.dataframe(failed_txns_df.style.format({
-    "False Txns Count": "{:,}",
-    "Number of Days of Activity": "{:,}",
-    "False Txns Count per Day": "{:.2f}",
-    "First Txn Date": lambda x: x.dt.strftime('%Y-%m-%d') if hasattr(x, "dt") else x
-}).highlight_max(subset=["False Txns Count"], color='tomato'))
 
 # --- Row 10: Side-by-Side Charts ---
 
