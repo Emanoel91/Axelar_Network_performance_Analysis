@@ -283,3 +283,39 @@ st.dataframe(
     use_container_width=True
 )
 
+# ----------------------------------------------------------------------------------------------------------------------------
+# --- انتخاب 20 زنجیره برتر ---
+top_20_chains = chains_df.head(20).reset_index()
+
+# --- تابع فرمت عدد برای نمایش روی ستون‌ها ---
+def human_format(num):
+    if num >= 1e9:
+        return f"{num/1e9:.1f}B"
+    elif num >= 1e6:
+        return f"{num/1e6:.1f}M"
+    elif num >= 1e3:
+        return f"{num/1e3:.1f}K"
+    else:
+        return str(int(num))
+
+# --- رسم Bar Chart ---
+fig_bar = px.bar(
+    top_20_chains,
+    x="Chain Name",
+    y="TVL (USD)",
+    color="Chain Name",
+    text=top_20_chains["TVL (USD)"].apply(human_format),
+    title="Top 20 Chains by TVL ($USD)"
+)
+
+# تنظیمات ظاهر
+fig_bar.update_traces(textposition="outside")
+fig_bar.update_layout(
+    xaxis_title="Chain",
+    yaxis_title="TVL (USD)",
+    showlegend=False,
+    plot_bgcolor="white"
+)
+
+# --- نمایش ---
+st.plotly_chart(fig_bar, use_container_width=True)
