@@ -60,8 +60,6 @@ st.sidebar.markdown(
 st.title("Axelar Network: TVL Analysis💸")
 
 # --------------------------------------------------------------------------------------------------------------------------------------------------
-st.title("📊 Axelar Token Data (from API)")
-
 # --- Load API Data ---
 @st.cache_data(ttl=3600)
 def load_axelar_api():
