@@ -65,7 +65,7 @@ st.info("🔔To view the most recent updates, click on the '...' in the top-righ
 # --- Load API Data ---
 @st.cache_data(ttl=3600)
 def load_axelar_api():
-    url = "https://api.axelarscan.io/api/getTVL"  # آدرس واقعی API که اول فرستادی
+    url = "https://api.axelarscan.io/api/getTVL"  
     response = requests.get(url)
     if response.status_code == 200:
         return response.json()
@@ -123,7 +123,6 @@ if data and "data" in data:
 else:
     st.warning("No data available from API.")
 # ----------------------------------------------------------------------------------------------------------------------------------------------
-# --- محاسبه TVL کل با حذف Asset ID های تکراری ---
 unique_assets = df.drop_duplicates(subset=["Asset ID"])
 total_axelar_tvl = unique_assets["Total Asset Value (USD)"].sum()
 
@@ -138,7 +137,6 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- آماده‌سازی داده برای Donut اول (Asset Type) ---
 asset_type_df = unique_assets.copy()
 asset_type_df["Asset Type Label"] = asset_type_df["Asset Type"].apply(
     lambda x: "ITS" if str(x).lower() == "its" else "non-ITS"
@@ -157,8 +155,6 @@ fig_asset_type = px.pie(
 fig_asset_type.update_traces(textposition="inside", textinfo="percent+label")
 fig_asset_type.update_layout(showlegend=True)
 
-# --- آماده‌سازی داده برای Donut دوم (Chain) ---
-# محاسبه TVL (USD) به صورت Total TVL * Price و گرد کردن
 df["TVL (USD)"] = (df["Total TVL"] * df["Price (USD)"]).round(0)
 
 chain_summary = df.groupby("Chain", as_index=False)["TVL (USD)"].sum()
@@ -173,7 +169,6 @@ fig_chain = px.pie(
 fig_chain.update_traces(textposition="inside", textinfo="percent+label")
 fig_chain.update_layout(showlegend=True)
 
-# --- نمایش دو نمودار در یک ردیف ---
 col1, col2 = st.columns(2)
 with col1:
     st.plotly_chart(fig_asset_type, use_container_width=True)
@@ -193,15 +188,11 @@ def load_chains_api():
 
 chains_data = load_chains_api()
 
-# --- تبدیل داده‌ها به DataFrame ---
 chains_df = pd.DataFrame(chains_data)
 
-# انتخاب ستون‌ها و تغییر نام
 chains_df = chains_df[["name", "tvl", "tokenSymbol"]]
 chains_df.columns = ["Chain Name", "TVL (USD)", "Native Token Symbol"]
 
-# --- افزودن داده Axelar ---
-# این total_axelar_tvl را از بخش محاسبه KPI قبلی داریم
 chains_df = pd.concat([
     chains_df,
     pd.DataFrame([{
@@ -211,13 +202,10 @@ chains_df = pd.concat([
     }])
 ], ignore_index=True)
 
-# --- مرتب‌سازی براساس TVL ---
 chains_df = chains_df.sort_values("TVL (USD)", ascending=False).reset_index(drop=True)
 
-# --- تغییر ایندکس شروع از 1 ---
 chains_df.index = chains_df.index + 1
 
-# --- نمایش جدول ---
 st.markdown("### TVL of Different Chains")
 st.dataframe(
     chains_df.style.format({
@@ -227,10 +215,8 @@ st.dataframe(
 )
 
 # ----------------------------------------------------------------------------------------------------------------------------
-# --- انتخاب 20 زنجیره برتر ---
 top_20_chains = chains_df.head(20).reset_index()
 
-# --- تابع فرمت عدد برای نمایش روی ستون‌ها ---
 def human_format(num):
     if num >= 1e9:
         return f"{num/1e9:.1f}B"
@@ -241,7 +227,7 @@ def human_format(num):
     else:
         return str(int(num))
 
-# --- رسم Bar Chart ---
+# --- Bar Chart ---
 fig_bar = px.bar(
     top_20_chains,
     x="Chain Name",
@@ -251,14 +237,12 @@ fig_bar = px.bar(
     title="Top 20 Chains by TVL ($USD)"
 )
 
-# تنظیمات ظاهر
 fig_bar.update_traces(textposition="outside")
 fig_bar.update_layout(
     xaxis_title="Chain",
-    yaxis_title="TVL (USD)",
+    yaxis_title="$USD",
     showlegend=False,
     plot_bgcolor="white"
 )
 
-# --- نمایش ---
 st.plotly_chart(fig_bar, use_container_width=True)
