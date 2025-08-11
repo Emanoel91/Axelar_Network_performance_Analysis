@@ -182,7 +182,7 @@ else:
 unique_assets = df.drop_duplicates(subset=["Asset ID"])
 total_axelar_tvl = unique_assets["Total Asset Value (USD)"].sum()
 
-# --- KPI بزرگ در یک ردیف ---
+# --- KPI ---
 st.markdown(
     f"""
     <div style="background-color:#1E1E1E; padding:20px; border-radius:15px; text-align:center;">
@@ -193,15 +193,14 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- آماده‌سازی داده برای نمودار ---
+# --- آماده‌سازی داده برای Donut اول (Asset Type) ---
 asset_type_df = unique_assets.copy()
 asset_type_df["Asset Type Label"] = asset_type_df["Asset Type"].apply(
     lambda x: "ITS" if str(x).lower() == "its" else "non-ITS"
 )
 asset_type_summary = asset_type_df.groupby("Asset Type Label", as_index=False)["Total Asset Value (USD)"].sum()
 
-# --- نمودار دونات در ردیف جدا ---
-fig_donut = px.pie(
+fig_asset_type = px.pie(
     asset_type_summary,
     values="Total Asset Value (USD)",
     names="Asset Type Label",
@@ -210,7 +209,25 @@ fig_donut = px.pie(
     color_discrete_map={"ITS": "#00FFAA", "non-ITS": "#FF4B4B"},
     title="Share of TVL by Asset Type"
 )
-fig_donut.update_traces(textposition="inside", textinfo="percent+label")
-fig_donut.update_layout(showlegend=True)
+fig_asset_type.update_traces(textposition="inside", textinfo="percent+label")
+fig_asset_type.update_layout(showlegend=True)
 
-st.plotly_chart(fig_donut, use_container_width=True)
+# --- آماده‌سازی داده برای Donut دوم (Chain) ---
+chain_summary = df.groupby("Chain", as_index=False)["Total Asset Value (USD)"].sum()
+
+fig_chain = px.pie(
+    chain_summary,
+    values="Total Asset Value (USD)",
+    names="Chain",
+    hole=0.5,
+    title="Share of TVL by Chain"
+)
+fig_chain.update_traces(textposition="inside", textinfo="percent+label")
+fig_chain.update_layout(showlegend=True)
+
+# --- نمایش دو نمودار در یک ردیف ---
+col1, col2 = st.columns(2)
+with col1:
+    st.plotly_chart(fig_asset_type, use_container_width=True)
+with col2:
+    st.plotly_chart(fig_chain, use_container_width=True)
