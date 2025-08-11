@@ -177,3 +177,20 @@ if data and "data" in data:
 
 else:
     st.warning("No data available from API.")
+# ----------------------------------------------------------------------------------------------------------------------------------------------
+# --- بعد از نمایش جدول ---
+
+# محاسبه TVL کل با حذف Asset ID های تکراری
+unique_assets = df.drop_duplicates(subset=["Asset ID"])
+total_axelar_tvl = unique_assets["Total Asset Value (USD)"].sum()
+
+# نمایش KPI بزرگ با استایل جذاب
+st.markdown(
+    f"""
+    <div style="background-color:#1E1E1E; padding:20px; border-radius:15px; text-align:center;">
+        <h2 style="color:#00FFAA; font-size:22px; margin-bottom:5px;">Total Axelar TVL</h2>
+        <h1 style="color:white; font-size:48px; font-weight:bold;">${total_axelar_tvl:,.0f}</h1>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
