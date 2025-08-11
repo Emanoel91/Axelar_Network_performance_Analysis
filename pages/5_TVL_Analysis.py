@@ -115,3 +115,65 @@ if not dune_tvl.empty:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No data available.")
+
+# --------------------------------------------------------------------------------------------------------------------------------------------------
+st.title("📊 Axelar Token Data (from API)")
+
+# --- Load API Data ---
+@st.cache_data(ttl=3600)
+def load_axelar_api():
+    url = "https://example.com/api"  # آدرس واقعی API که اول فرستادی
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error(f"Failed to fetch API data: {response.status_code}")
+        return None
+
+data = load_axelar_api()
+
+# --- Parse Data ---
+if data and "data" in data:
+    rows = []
+    for asset in data["data"]:
+        asset_id = asset.get("asset", "")
+        price = asset.get("price", None)
+        total = asset.get("total", None)
+        value = asset.get("value", None)
+        asset_type = asset.get("assetType", "")
+        abnormal = asset.get("is_abnormal_supply", False)
+
+        tvl_data = asset.get("tvl", {})
+        for chain, details in tvl_data.items():
+            rows.append({
+                "Asset ID": asset_id,
+                "Asset Type": asset_type,
+                "Chain": chain,
+                "Token Symbol": details.get("contract_data", {}).get("symbol") if "contract_data" in details else None,
+                "Token Name": details.get("contract_data", {}).get("name") if "contract_data" in details else None,
+                "Contract Address": details.get("contract_data", {}).get("contract_address") if "contract_data" in details else None,
+                "Gateway Address": details.get("gateway_address", None),
+                "Supply": details.get("supply", None),
+                "Total TVL": details.get("total", None),
+                "Price (USD)": price,
+                "Total Asset Value (USD)": value,
+                "Is Abnormal?": abnormal
+            })
+
+    df = pd.DataFrame(rows)
+
+    # --- Format Numbers ---
+    numeric_cols = ["Supply", "Total TVL", "Price (USD)", "Total Asset Value (USD)"]
+    for col in numeric_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # --- Display Table ---
+    st.dataframe(df.style.format({
+        "Supply": "{:,.2f}",
+        "Total TVL": "{:,.2f}",
+        "Price (USD)": "{:,.4f}",
+        "Total Asset Value (USD)": "{:,.2f}"
+    }), use_container_width=True)
+
+else:
+    st.warning("No data available from API.")
