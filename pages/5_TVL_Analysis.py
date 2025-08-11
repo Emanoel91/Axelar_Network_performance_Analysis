@@ -113,13 +113,13 @@ if data and "data" in data:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # --- Display Table ---
-    st.dataframe(df.style.format({
-        "Supply": "{:,.2f}",
-        "Total TVL": "{:,.2f}",
-        "Price (USD)": "{:,.4f}",
-        "TVL (USD)": "{:,.0f}",
-        "Total Asset Value (USD)": "{:,.2f}"
-    }), use_container_width=True)
+# --    st.dataframe(df.style.format({
+# --        "Supply": "{:,.2f}",
+# --        "Total TVL": "{:,.2f}",
+# --        "Price (USD)": "{:,.4f}",
+# --        "TVL (USD)": "{:,.0f}",
+# --        "Total Asset Value (USD)": "{:,.2f}"
+# --    }), use_container_width=True)
 else:
     st.warning("No data available from API.")
 # ----------------------------------------------------------------------------------------------------------------------------------------------
