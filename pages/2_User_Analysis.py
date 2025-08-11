@@ -72,12 +72,12 @@ conn = snowflake.connector.connect(
     schema="PUBLIC"
 )
 
-# --- Time Frame & Period Selection ---
+# --- Time Frame & Period Selection --------------------------------------------------------------------------------------------------------------------------
 timeframe = st.selectbox("Select Time Frame", ["month", "week", "day"])
 start_date = st.date_input("Start Date", value=pd.to_datetime("2023-01-01"))
 end_date = st.date_input("End Date", value=pd.to_datetime("2025-07-31"))
 
-# --- Helper function for date truncation based on timeframe ---
+# --- Helper function for date truncation based on timeframe -------------
 def truncate_date(date_col, timeframe):
     if timeframe == "day":
         return f"block_timestamp::date"
@@ -90,7 +90,8 @@ def truncate_date(date_col, timeframe):
 
 date_col = truncate_date("block_timestamp", timeframe)
 
-# --- Query Functions ---
+# --- Query Functions ------------------------------------------------------------------------------------------------------------------------------------
+# --- Row 1 -----------------------------------------------------------------
 @st.cache_data
 def load_total_users(start_date, end_date):
     query = f"""
