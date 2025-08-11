@@ -145,6 +145,7 @@ if data and "data" in data:
 
         tvl_data = asset.get("tvl", {})
         for chain, details in tvl_data.items():
+            total_tvl = details.get("total", None)
             rows.append({
                 "Asset ID": asset_id,
                 "Asset Type": asset_type,
@@ -154,8 +155,9 @@ if data and "data" in data:
                 "Contract Address": details.get("contract_data", {}).get("contract_address") if "contract_data" in details else None,
                 "Gateway Address": details.get("gateway_address", None),
                 "Supply": details.get("supply", None),
-                "Total TVL": details.get("total", None),
+                "Total TVL": total_tvl,
                 "Price (USD)": price,
+                "TVL (USD)": round(total_tvl * price, 0) if total_tvl is not None and price is not None else None,
                 "Total Asset Value (USD)": value,
                 "Is Abnormal?": abnormal
             })
@@ -163,7 +165,7 @@ if data and "data" in data:
     df = pd.DataFrame(rows)
 
     # --- Format Numbers ---
-    numeric_cols = ["Supply", "Total TVL", "Price (USD)", "Total Asset Value (USD)"]
+    numeric_cols = ["Supply", "Total TVL", "Price (USD)", "TVL (USD)", "Total Asset Value (USD)"]
     for col in numeric_cols:
         df[col] = pd.to_numeric(df[col], errors="coerce")
 
@@ -172,9 +174,9 @@ if data and "data" in data:
         "Supply": "{:,.2f}",
         "Total TVL": "{:,.2f}",
         "Price (USD)": "{:,.4f}",
+        "TVL (USD)": "{:,.0f}",
         "Total Asset Value (USD)": "{:,.2f}"
     }), use_container_width=True)
-
 else:
     st.warning("No data available from API.")
 # ----------------------------------------------------------------------------------------------------------------------------------------------
