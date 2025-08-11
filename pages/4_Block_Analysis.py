@@ -224,7 +224,7 @@ def load_top_blocks(start_date, end_date):
     WHERE block_timestamp::date >= '{start_date}'
       AND block_timestamp::date <= '{end_date}'
     ORDER BY 3 DESC
-    LIMIT 5
+    LIMIT 10
     """
     return pd.read_sql(query, conn)
 
@@ -234,7 +234,7 @@ top_blocks = load_top_blocks(start_date, end_date)
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown("<h4 style='font-size:18px;'>🧱 5 Blocks with the Highest Number of Transactions</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='font-size:18px;'>🧱 10 Blocks with the Highest Number of Transactions</h4>", unsafe_allow_html=True)
     st.dataframe(top_blocks, use_container_width=True)
 
 with col2:
