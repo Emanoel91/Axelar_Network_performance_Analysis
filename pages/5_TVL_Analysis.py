@@ -59,6 +59,9 @@ st.sidebar.markdown(
 
 st.title("Axelar Network: TVL Analysis💸")
 
+st.info("🔔The data in this section is updated on Mondays between 14:30 and 15:00 UTC. "
+    "To view the most recent updates, click on the '...' in the top-right corner of the page and select 'Rerun'.")
+
 # --------------------------------------------------------------------------------------------------------------------------------------------------
 # --- Load API Data ---
 @st.cache_data(ttl=3600)
