@@ -236,3 +236,50 @@ with col1:
     st.plotly_chart(fig_asset_type, use_container_width=True)
 with col2:
     st.plotly_chart(fig_chain, use_container_width=True)
+# ------------------------------------------------------------------------------------------------------------------------------------------------
+# --- Load Chains API ---
+@st.cache_data(ttl=3600)
+def load_chains_api():
+    url = "https://api.llama.fi/v2/chains"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        st.error(f"Failed to fetch Chains API: {response.status_code}")
+        return []
+
+chains_data = load_chains_api()
+
+# --- تبدیل داده‌ها به DataFrame ---
+chains_df = pd.DataFrame(chains_data)
+
+# انتخاب ستون‌ها و تغییر نام
+chains_df = chains_df[["name", "tvl", "tokenSymbol"]]
+chains_df.columns = ["Chain Name", "TVL (USD)", "Native Token Symbol"]
+
+# --- افزودن داده Axelar ---
+# این total_axelar_tvl را از بخش محاسبه KPI قبلی داریم
+chains_df = pd.concat([
+    chains_df,
+    pd.DataFrame([{
+        "Chain Name": "Axelar",
+        "TVL (USD)": total_axelar_tvl,
+        "Native Token Symbol": "AXL"
+    }])
+], ignore_index=True)
+
+# --- مرتب‌سازی براساس TVL ---
+chains_df = chains_df.sort_values("TVL (USD)", ascending=False).reset_index(drop=True)
+
+# --- تغییر ایندکس شروع از 1 ---
+chains_df.index = chains_df.index + 1
+
+# --- نمایش جدول ---
+st.markdown("### TVL of Different Chains")
+st.dataframe(
+    chains_df.style.format({
+        "TVL (USD)": "{:,.0f}"
+    }),
+    use_container_width=True
+)
+
