@@ -3,6 +3,8 @@ import pandas as pd
 import snowflake.connector
 import plotly.express as px
 import plotly.graph_objects as go
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
 
 # --- Page Config: Tab Title & Icon ---
 st.set_page_config(
@@ -63,14 +65,34 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-# --- Snowflake Connection --------------------------------------------------------------------------------------------------------------------------------------
+# --- Snowflake Connection ----------------------------------------------------------------------------------------
+snowflake_secrets = st.secrets["snowflake"]
+user = snowflake_secrets["user"]
+account = snowflake_secrets["account"]
+private_key_str = snowflake_secrets["private_key"]
+warehouse = snowflake_secrets.get("warehouse", "")
+database = snowflake_secrets.get("database", "")
+schema = snowflake_secrets.get("schema", "")
+
+private_key_pem = f"-----BEGIN PRIVATE KEY-----\n{private_key_str}\n-----END PRIVATE KEY-----".encode("utf-8")
+private_key = serialization.load_pem_private_key(
+    private_key_pem,
+    password=None,
+    backend=default_backend()
+)
+private_key_bytes = private_key.private_bytes(
+    encoding=serialization.Encoding.DER,
+    format=serialization.PrivateFormat.PKCS8,
+    encryption_algorithm=serialization.NoEncryption()
+)
+
 conn = snowflake.connector.connect(
-    user=st.secrets["snowflake"]["user"],
-    password=st.secrets["snowflake"]["password"],
-    account=st.secrets["snowflake"]["account"],
-    warehouse="SNOWFLAKE_LEARNING_WH",
-    database="AXELAR",
-    schema="PUBLIC"
+    user=user,
+    account=account,
+    private_key=private_key_bytes,
+    warehouse=warehouse,
+    database=database,
+    schema=schema
 )
 
 # --- Time Frame & Period Selection ---------------------------------------------------------------------------------------------------------------------------
